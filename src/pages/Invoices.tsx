@@ -53,7 +53,7 @@ const Invoices = () => {
                 </div>
                 <Link to="/invoices/new" className="bg-primary hover:bg-primary-dark text-white px-4 py-2 rounded-xl flex items-center gap-2 transition-colors font-medium shadow-lg shadow-primary/20">
                     <Plus className="w-5 h-5" />
-                    New Invoice
+                    <span>New Invoice</span>
                 </Link>
             </div>
 

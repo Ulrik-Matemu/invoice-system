@@ -37,6 +37,10 @@ export interface Invoice {
     createdAt: Timestamp;
     dueDate: string;
     invoiceNumber: string;
+    taxRate: number;
+    companyName?: string;
+    companyAddress?: string;
+    companyEmail?: string;
 }
 
 export const addInvoice = async (invoiceData: Omit<Invoice, 'id' | 'createdAt'>) => {
@@ -169,6 +173,44 @@ export const deleteClient = async (clientId: string) => {
         await deleteDoc(doc(db, 'clients', clientId));
     } catch (error) {
         console.error("Error deleting client: ", error);
+        throw error;
+    }
+};
+
+// User Settings
+
+export interface UserSettings {
+    userId: string;
+    taxRate: number;
+    companyName?: string;
+    companyAddress?: string;
+    companyEmail?: string;
+}
+
+export const getUserSettings = async (userId: string) => {
+    try {
+        const docRef = doc(db, 'settings', userId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            return docSnap.data() as UserSettings;
+        } else {
+            // Default settings
+            return { userId, taxRate: 0.1 };
+        }
+    } catch (error) {
+        console.error("Error getting settings:", error);
+        throw error;
+    }
+};
+
+export const updateUserSettings = async (userId: string, settings: Partial<UserSettings>) => {
+    try {
+        const docRef = doc(db, 'settings', userId);
+        // Use setDoc with merge: true to create if not exists or update
+        const { setDoc } = await import('firebase/firestore');
+        await setDoc(docRef, { ...settings, userId }, { merge: true });
+    } catch (error) {
+        console.error("Error updating settings:", error);
         throw error;
     }
 };

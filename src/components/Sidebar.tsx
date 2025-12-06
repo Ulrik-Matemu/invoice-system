@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -12,6 +13,7 @@ import { clsx } from 'clsx';
 
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { getUserSettings } from '../lib/firestore';
 
 interface SidebarProps {
     isOpen: boolean;
@@ -19,8 +21,25 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
-    const { logout } = useAuth();
+    const { logout, user } = useAuth();
     const navigate = useNavigate();
+    const [companyName, setCompanyName] = useState('Invoice System');
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            if (user) {
+                try {
+                    const settings = await getUserSettings(user.uid);
+                    if (settings.companyName) {
+                        setCompanyName(settings.companyName);
+                    }
+                } catch (error) {
+                    console.error("Error fetching settings:", error);
+                }
+            }
+        };
+        fetchSettings();
+    }, [user]);
 
     const handleLogout = async () => {
         try {
@@ -58,8 +77,8 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                             <Compass className="text-white w-6 h-6" />
                         </div>
                         <div>
-                            <h1 className="text-xl font-bold text-white tracking-tight">Invoice System</h1>
-                            <p className="text-xs text-text-muted">Ndito Travel</p>
+                            <h1 className="text-xl font-bold text-white tracking-tight">{companyName}</h1>
+                            <p className="text-xs text-text-muted">Invoice System</p>
                         </div>
                     </div>
                     <button

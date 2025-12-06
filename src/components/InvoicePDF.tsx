@@ -7,7 +7,8 @@ interface InvoicePDFProps {
 
 export const InvoicePDF = forwardRef<HTMLDivElement, InvoicePDFProps>(({ invoice }, ref) => {
     const subtotal = invoice.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-    const tax = subtotal * 0.1; // Assuming 10% tax for now, can be dynamic later
+    const taxRate = invoice.taxRate !== undefined ? invoice.taxRate : 0.1;
+    const tax = subtotal * taxRate;
     const total = subtotal + tax;
 
     return (
@@ -19,10 +20,9 @@ export const InvoicePDF = forwardRef<HTMLDivElement, InvoicePDFProps>(({ invoice
                     <p className="text-slate-500 font-medium">#{invoice.invoiceNumber}</p>
                 </div>
                 <div className="text-right">
-                    <h2 className="text-xl font-bold text-slate-900">Ndito Travel</h2>
-                    <p className="text-slate-500 text-sm mt-1">Njiro Road</p>
-                    <p className="text-slate-500 text-sm">Arusha, Tanzania</p>
-                    <p className="text-slate-500 text-sm">office@nditotravel.co.tz</p>
+                    <h2 className="text-xl font-bold text-slate-900">{invoice.companyName || 'Ndito Travel'}</h2>
+                    <p className="text-slate-500 text-sm mt-1">{invoice.companyAddress || 'Njiro Road, Arusha, Tanzania'}</p>
+                    <p className="text-slate-500 text-sm">{invoice.companyEmail || 'office@nditotravel.co.tz'}</p>
                 </div>
             </div>
 
@@ -99,7 +99,7 @@ export const InvoicePDF = forwardRef<HTMLDivElement, InvoicePDFProps>(({ invoice
                         <span>${subtotal.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between text-slate-500">
-                        <span>Tax (10%)</span>
+                        <span>Tax ({(taxRate * 100).toFixed(1)}%)</span>
                         <span>${tax.toLocaleString()}</span>
                     </div>
                     <div className="flex justify-between text-lg font-bold text-slate-900 pt-3 border-t-2 border-slate-100">

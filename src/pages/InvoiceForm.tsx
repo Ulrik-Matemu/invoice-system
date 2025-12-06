@@ -3,7 +3,7 @@ import { ArrowLeft, Save, Plus, Trash2, Calendar, Loader2, Printer } from 'lucid
 import { useNavigate, useParams } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import { useAuth } from '../context/AuthContext';
-import { addInvoice, getInvoice, updateInvoice, type Invoice } from '../lib/firestore';
+import { addInvoice, getInvoice, updateInvoice, getUserSettings, getClients, type Invoice, type Client } from '../lib/firestore';
 import { InvoicePDF } from '../components/InvoicePDF';
 
 const InvoiceForm = () => {
@@ -12,12 +12,15 @@ const InvoiceForm = () => {
     const { user } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isLoading, setIsLoading] = useState(!!id);
+    const [clients, setClients] = useState<Client[]>([]);
 
     const [clientName, setClientName] = useState('');
     const [agentName, setAgentName] = useState('');
     const [clientType, setClientType] = useState<'Direct' | 'Agent'>('Direct');
     const [dueDate, setDueDate] = useState('');
     const [status, setStatus] = useState<'Pending' | 'Paid' | 'Overdue'>('Pending');
+    const [taxRate, setTaxRate] = useState(0.1); // Default 10%
+    const [companyDetails, setCompanyDetails] = useState({ name: '', address: '', email: '' });
     const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now().toString().slice(-6)}`);
     const [createdAt, setCreatedAt] = useState<any>(null);
 
@@ -43,6 +46,19 @@ const InvoiceForm = () => {
         const fetchData = async () => {
             if (user) {
                 try {
+                    // Fetch user settings for default tax rate and company details
+                    const settings = await getUserSettings(user.uid);
+                    setTaxRate(settings.taxRate);
+                    setCompanyDetails({
+                        name: settings.companyName || '',
+                        address: settings.companyAddress || '',
+                        email: settings.companyEmail || ''
+                    });
+
+                    // Fetch clients for suggestions
+                    const clientsData = await getClients(user.uid);
+                    setClients(clientsData);
+
                     if (id) {
                         const invoiceData = await getInvoice(id);
                         if (invoiceData) {
@@ -52,6 +68,10 @@ const InvoiceForm = () => {
                             setClientType(invoiceData.clientType);
                             setDueDate(invoiceData.dueDate);
                             setStatus(invoiceData.status);
+                            // If invoice has a stored tax rate, use it. Otherwise keep default from settings
+                            if (invoiceData.taxRate !== undefined) {
+                                setTaxRate(invoiceData.taxRate);
+                            }
                             setItems(invoiceData.items.map((item, index) => ({
                                 ...item,
                                 id: index + 1,
@@ -100,7 +120,7 @@ const InvoiceForm = () => {
     };
 
     const calculateTax = () => {
-        return calculateSubtotal() * 0.1; // 10% tax
+        return calculateSubtotal() * taxRate;
     };
 
     const calculateTotal = () => {
@@ -126,7 +146,8 @@ const InvoiceForm = () => {
                     serviceType: item.serviceType as any
                 })),
                 totalAmount: calculateTotal(),
-                status: status
+                status: status,
+                taxRate: taxRate
             };
 
             if (id) {
@@ -167,7 +188,11 @@ const InvoiceForm = () => {
         })),
         totalAmount: calculateTotal(),
         status: status,
-        createdAt: createdAt
+        createdAt: createdAt,
+        taxRate: taxRate,
+        companyName: companyDetails.name,
+        companyAddress: companyDetails.address,
+        companyEmail: companyDetails.email
     };
 
     return (
@@ -252,8 +277,14 @@ const InvoiceForm = () => {
                                 value={clientName}
                                 onChange={(e) => setClientName(e.target.value)}
                                 placeholder="Enter client name"
+                                list="clients-list"
                                 className="w-full bg-surface-light/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
                             />
+                            <datalist id="clients-list">
+                                {clients.map(client => (
+                                    <option key={client.id} value={client.name} />
+                                ))}
+                            </datalist>
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-text-muted">Client Type</label>
@@ -426,7 +457,7 @@ const InvoiceForm = () => {
                                 <span>${calculateSubtotal().toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between text-text-muted">
-                                <span>Tax (10%)</span>
+                                <span>Tax ({(taxRate * 100).toFixed(1)}%)</span>
                                 <span>${calculateTax().toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between text-xl font-bold text-white pt-4 border-t border-white/10">
