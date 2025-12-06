@@ -209,7 +209,7 @@ const InvoiceForm = () => {
                     </div>
                 </div>
 
-                <div className="glass-panel rounded-2xl p-8 space-y-8">
+                <div className="glass-panel rounded-2xl p-4 md:p-8 space-y-8">
                     <div className="flex justify-between items-start border-b border-white/5 pb-8">
                         <div>
                             <h1 className="text-2xl font-bold text-white mb-2">{id ? 'Edit Invoice' : 'New Invoice'}</h1>
@@ -222,7 +222,7 @@ const InvoiceForm = () => {
                                     <select
                                         value={status}
                                         onChange={(e) => setStatus(e.target.value as any)}
-                                        className="bg-surface-light/50 border border-white/10 rounded-xl px-4 py-2 text-white text-right focus:outline-none focus:border-primary/50 transition-colors"
+                                        className="bg-surface-light/50 border border-white/10 rounded-xl px-4 py-2 text-white text-right focus:outline-none focus:border-primary/50 transition-colors w-full"
                                     >
                                         <option value="Pending">Pending</option>
                                         <option value="Paid">Paid</option>
@@ -236,7 +236,7 @@ const InvoiceForm = () => {
                                     type="text"
                                     value={invoiceNumber}
                                     onChange={(e) => setInvoiceNumber(e.target.value)}
-                                    className="bg-surface-light/50 border border-white/10 rounded-xl px-4 py-2 text-white text-right focus:outline-none focus:border-primary/50 transition-colors"
+                                    className="bg-surface-light/50 border border-white/10 rounded-xl px-4 py-2 text-white text-right focus:outline-none focus:border-primary/50 transition-colors w-full"
                                 />
                             </div>
                         </div>
