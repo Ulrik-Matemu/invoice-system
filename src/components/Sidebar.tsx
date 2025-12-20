@@ -89,12 +89,13 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                     </button>
                 </div>
 
-                <nav className="flex-1 px-4 py-6 space-y-2">
+                <nav id="sidebar-nav" className="flex-1 px-4 py-6 space-y-2">
                     {navItems.map((item) => (
                         <NavLink
                             key={item.path}
                             to={item.path}
                             onClick={() => onClose()}
+                            id={item.path === '/settings' ? 'nav-settings' : undefined}
                             className={({ isActive }) => clsx('nav-item', isActive && 'active')}
                         >
                             <item.icon className="w-5 h-5" />

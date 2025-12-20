@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Save, Loader2 } from 'lucide-react';
+import { Save, Loader2, Plus, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getUserSettings, updateUserSettings } from '../lib/firestore';
+import { useBlocker } from 'react-router-dom';
+import { getUserSettings, updateUserSettings, type ServiceTypeConfig } from '../lib/firestore';
 
 const Settings = () => {
     const { user } = useAuth();
@@ -11,6 +12,19 @@ const Settings = () => {
     const [companyName, setCompanyName] = useState('');
     const [companyAddress, setCompanyAddress] = useState('');
     const [companyEmail, setCompanyEmail] = useState('');
+    const [companyPhone, setCompanyPhone] = useState('');
+    const [companyWebsite, setCompanyWebsite] = useState('');
+    const [companyTaxId, setCompanyTaxId] = useState(''); // TIN
+    const [companyTaxNumber, setCompanyTaxNumber] = useState(''); // VRN
+    const [companyLicenseNumber, setCompanyLicenseNumber] = useState('');
+    const [defaultTemplate, setDefaultTemplate] = useState<'standard' | 'premium'>('standard');
+    const [serviceTypes, setServiceTypes] = useState<ServiceTypeConfig[]>([]);
+    const [enableAgentDetails, setEnableAgentDetails] = useState(true);
+    const [newServiceType, setNewServiceType] = useState('');
+    const [newServiceRequiresDates, setNewServiceRequiresDates] = useState(false);
+    const [newServiceLabel, setNewServiceLabel] = useState('Description');
+    const [initialSettings, setInitialSettings] = useState<string>('');
+    const [isDirty, setIsDirty] = useState(false);
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -21,6 +35,54 @@ const Settings = () => {
                     setCompanyName(settings.companyName || '');
                     setCompanyAddress(settings.companyAddress || '');
                     setCompanyEmail(settings.companyEmail || '');
+                    setCompanyPhone(settings.companyPhone || '');
+                    setCompanyWebsite(settings.companyWebsite || '');
+                    setCompanyTaxId(settings.companyTaxId || '');
+                    setCompanyTaxNumber(settings.companyTaxNumber || '');
+                    setCompanyLicenseNumber(settings.companyLicenseNumber || '');
+                    setDefaultTemplate(settings.defaultTemplate || 'standard');
+                    // Migration: Convert string[] to ServiceTypeConfig[] if needed
+                    const loadedServices = settings.serviceTypes || [];
+                    const normalizedServices: ServiceTypeConfig[] = loadedServices.map((s: any) => {
+                        if (typeof s === 'string') {
+                            return {
+                                name: s,
+                                requiresDates: ['Hotel', 'Safari', 'Flight', 'Custom Package'].includes(s),
+                                descriptionLabel: s === 'Hotel' ? 'Hotel Name' :
+                                    s === 'Safari' ? 'Safari Details' :
+                                        s === 'Flight' ? 'Flight Details' :
+                                            'Description'
+                            };
+                        }
+                        return s;
+                    });
+
+                    if (normalizedServices.length === 0) {
+                        setServiceTypes([
+                            { name: 'Service', requiresDates: false, descriptionLabel: 'Description' },
+                            { name: 'Product', requiresDates: false, descriptionLabel: 'Description' },
+                            { name: 'Hours', requiresDates: false, descriptionLabel: 'Description' }
+                        ]);
+                    } else {
+                        setServiceTypes(normalizedServices);
+                    }
+                    setEnableAgentDetails(settings.enableAgentDetails !== undefined ? settings.enableAgentDetails : true);
+
+                    // Store initial state for dirty checking
+                    setInitialSettings(JSON.stringify({
+                        taxRate: settings.taxRate * 100,
+                        companyName: settings.companyName || '',
+                        companyAddress: settings.companyAddress || '',
+                        companyEmail: settings.companyEmail || '',
+                        companyPhone: settings.companyPhone || '',
+                        companyWebsite: settings.companyWebsite || '',
+                        companyTaxId: settings.companyTaxId || '',
+                        companyTaxNumber: settings.companyTaxNumber || '',
+                        companyLicenseNumber: settings.companyLicenseNumber || '',
+                        defaultTemplate: settings.defaultTemplate || 'standard',
+                        serviceTypes: normalizedServices,
+                        enableAgentDetails: settings.enableAgentDetails !== undefined ? settings.enableAgentDetails : true
+                    }));
                 } catch (error) {
                     console.error("Error fetching settings:", error);
                 } finally {
@@ -31,16 +93,99 @@ const Settings = () => {
         fetchSettings();
     }, [user]);
 
+    // Check for unsaved changes
+    useEffect(() => {
+        if (!isLoading) {
+            const currentSettings = JSON.stringify({
+                taxRate,
+                companyName,
+                companyAddress,
+                companyEmail,
+                companyPhone,
+                companyWebsite,
+                companyTaxId,
+                companyTaxNumber,
+                companyLicenseNumber,
+                defaultTemplate,
+                serviceTypes,
+                enableAgentDetails
+            });
+            setIsDirty(currentSettings !== initialSettings);
+        }
+    }, [taxRate, companyName, companyAddress, companyEmail, companyPhone, companyWebsite, companyTaxId, companyTaxNumber, companyLicenseNumber, defaultTemplate, serviceTypes, enableAgentDetails, initialSettings, isLoading]);
+
+    // Warn on navigation (Browser Refresh/Close)
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (isDirty) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isDirty]);
+
+    // Warn on navigation (In-App)
+    // Note: To use `useBlocker` in react-router-dom v6.4+, your application must be configured with a Data Router (e.g., using createBrowserRouter and RouterProvider).
+    // If you are not using a Data Router, `useBlocker` will not work.
+    // For applications not using a Data Router, you would typically implement a custom navigation blocker
+    // using `useNavigate` and `useLocation` with a state management approach, or a library like `react-router-dom-v5-compat`'s `usePrompt`.
+    // Assuming the intent is to enable `useBlocker` and the root router will be updated to a Data Router.
+    const blocker = useBlocker(
+        ({ currentLocation, nextLocation }: { currentLocation: any; nextLocation: any }) =>
+            isDirty && currentLocation.pathname !== nextLocation.pathname
+    );
+
+    useEffect(() => {
+        if (blocker.state === "blocked") {
+            const proceed = window.confirm("You have unsaved changes. Are you sure you want to leave?");
+            if (proceed) {
+                blocker.proceed();
+            } else {
+                blocker.reset();
+            }
+        }
+    }, [blocker]);
+
     const handleSave = async () => {
         if (!user) return;
         setIsSaving(true);
         try {
-            await updateUserSettings(user.uid, {
+            const newSettings = {
                 taxRate: taxRate / 100,
                 companyName,
                 companyAddress,
-                companyEmail
-            });
+                companyEmail,
+                companyPhone,
+                companyWebsite,
+                companyTaxId,
+                companyTaxNumber,
+                companyLicenseNumber,
+                defaultTemplate,
+                serviceTypes,
+                enableAgentDetails
+            };
+            await updateUserSettings(user.uid, newSettings);
+
+            // Update initial settings to current state
+            setInitialSettings(JSON.stringify({
+                taxRate,
+                companyName,
+                companyAddress,
+                companyEmail,
+                companyPhone,
+                companyWebsite,
+                companyTaxId,
+                companyTaxNumber,
+                companyLicenseNumber,
+                defaultTemplate,
+                serviceTypes,
+                enableAgentDetails
+            }));
+            setIsDirty(false);
+
             alert('Settings saved successfully');
         } catch (error) {
             console.error("Error saving settings:", error);
@@ -48,6 +193,23 @@ const Settings = () => {
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const addServiceType = () => {
+        if (newServiceType && !serviceTypes.find(s => s.name === newServiceType)) {
+            setServiceTypes([...serviceTypes, {
+                name: newServiceType,
+                requiresDates: newServiceRequiresDates,
+                descriptionLabel: newServiceLabel || 'Description'
+            }]);
+            setNewServiceType('');
+            setNewServiceRequiresDates(false);
+            setNewServiceLabel('Description');
+        }
+    };
+
+    const removeServiceType = (name: string) => {
+        setServiceTypes(serviceTypes.filter(t => t.name !== name));
     };
 
     if (isLoading) {
@@ -79,6 +241,132 @@ const Settings = () => {
                             />
                             <p className="text-xs text-text-muted">This tax rate will be applied to all new invoices.</p>
                         </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 className="text-xl font-bold text-white mb-4">Features & Customization</h2>
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between p-4 rounded-xl bg-surface-light/30 border border-white/10">
+                            <div>
+                                <h3 className="font-medium text-white">Agent & Referral Details</h3>
+                                <p className="text-sm text-text-muted">Enable fields for Client Type (Direct/Agent) and Agent Name.</p>
+                            </div>
+                            <button
+                                onClick={() => setEnableAgentDetails(!enableAgentDetails)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${enableAgentDetails ? 'bg-primary' : 'bg-white/20'
+                                    }`}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${enableAgentDetails ? 'translate-x-6' : 'translate-x-1'
+                                        }`}
+                                />
+                            </button>
+                        </div>
+
+                        <div className="space-y-4">
+                            <h3 className="font-medium text-white">Service Types</h3>
+                            <p className="text-sm text-text-muted">Customize the types of services you offer and their details.</p>
+
+                            <div className="p-4 rounded-xl bg-surface-light/30 border border-white/10 space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-text-muted">Service Name</label>
+                                        <input
+                                            type="text"
+                                            value={newServiceType}
+                                            onChange={(e) => setNewServiceType(e.target.value)}
+                                            placeholder="e.g. Consulting"
+                                            className="w-full bg-surface-light/50 border border-white/10 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-primary/50 transition-colors"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs text-text-muted">Description Label</label>
+                                        <input
+                                            type="text"
+                                            value={newServiceLabel}
+                                            onChange={(e) => setNewServiceLabel(e.target.value)}
+                                            placeholder="e.g. Project Name"
+                                            className="w-full bg-surface-light/50 border border-white/10 rounded-xl px-4 py-2 text-white focus:outline-none focus:border-primary/50 transition-colors"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-2 pt-6">
+                                        <input
+                                            type="checkbox"
+                                            id="requiresDates"
+                                            checked={newServiceRequiresDates}
+                                            onChange={(e) => setNewServiceRequiresDates(e.target.checked)}
+                                            className="w-4 h-4 rounded border-white/10 bg-surface-light/50 text-primary focus:ring-primary"
+                                        />
+                                        <label htmlFor="requiresDates" className="text-sm text-white select-none">Requires Dates?</label>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={addServiceType}
+                                    disabled={!newServiceType}
+                                    className="w-full bg-white/10 hover:bg-white/20 text-white p-2 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    Add Service Type
+                                </button>
+                            </div>
+
+                            <div className="space-y-2">
+                                {serviceTypes.map((service) => (
+                                    <div key={service.name} className="flex items-center justify-between bg-surface-light/50 border border-white/10 px-4 py-3 rounded-xl">
+                                        <div>
+                                            <div className="font-medium text-white">{service.name}</div>
+                                            <div className="text-xs text-text-muted flex gap-2">
+                                                <span>Label: {service.descriptionLabel}</span>
+                                                <span>•</span>
+                                                <span>{service.requiresDates ? 'Requires Dates' : 'No Dates'}</span>
+                                            </div>
+                                        </div>
+                                        <button
+                                            onClick={() => removeServiceType(service.name)}
+                                            className="text-text-muted hover:text-red-400 transition-colors p-2"
+                                        >
+                                            <X className="w-4 h-4" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <h2 className="text-xl font-bold text-white mb-4">Invoice Template</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button
+                            onClick={() => setDefaultTemplate('standard')}
+                            className={`p-4 rounded-xl border text-left transition-all ${defaultTemplate === 'standard'
+                                ? 'bg-primary/20 border-primary'
+                                : 'bg-surface-light/30 border-white/10 hover:bg-surface-light/50'
+                                }`}
+                        >
+                            <div className={`w-4 h-4 rounded-full border mb-3 ${defaultTemplate === 'standard'
+                                ? 'border-primary bg-primary'
+                                : 'border-white/30'
+                                }`} />
+                            <h3 className="font-bold text-white mb-1">Standard</h3>
+                            <p className="text-sm text-text-muted">Clean and professional design suitable for most businesses.</p>
+                        </button>
+
+                        <button
+                            onClick={() => setDefaultTemplate('premium')}
+                            className={`p-4 rounded-xl border text-left transition-all ${defaultTemplate === 'premium'
+                                ? 'bg-primary/20 border-primary'
+                                : 'bg-surface-light/30 border-white/10 hover:bg-surface-light/50'
+                                }`}
+                        >
+                            <div className={`w-4 h-4 rounded-full border mb-3 ${defaultTemplate === 'premium'
+                                ? 'border-primary bg-primary'
+                                : 'border-white/30'
+                                }`} />
+                            <h3 className="font-bold text-white mb-1">Premium</h3>
+                            <p className="text-sm text-text-muted">Elegant, high-end design with modern typography and layout.</p>
+                        </button>
                     </div>
                 </div>
 
@@ -115,17 +403,70 @@ const Settings = () => {
                                 className="w-full bg-surface-light/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
                             />
                         </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-text-muted">Phone Number</label>
+                            <input
+                                type="tel"
+                                value={companyPhone}
+                                onChange={(e) => setCompanyPhone(e.target.value)}
+                                placeholder="e.g. +255 123 456 789"
+                                className="w-full bg-surface-light/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-text-muted">Website</label>
+                            <input
+                                type="url"
+                                value={companyWebsite}
+                                onChange={(e) => setCompanyWebsite(e.target.value)}
+                                placeholder="e.g. https://www.nditotravel.co.tz"
+                                className="w-full bg-surface-light/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-text-muted">Tax ID (TIN)</label>
+                            <input
+                                type="text"
+                                value={companyTaxId}
+                                onChange={(e) => setCompanyTaxId(e.target.value)}
+                                placeholder="Tax Identification Number"
+                                className="w-full bg-surface-light/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-text-muted">Tax Number (VRN)</label>
+                            <input
+                                type="text"
+                                value={companyTaxNumber}
+                                onChange={(e) => setCompanyTaxNumber(e.target.value)}
+                                placeholder="VAT Registration Number"
+                                className="w-full bg-surface-light/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-text-muted">License Number</label>
+                            <input
+                                type="text"
+                                value={companyLicenseNumber}
+                                onChange={(e) => setCompanyLicenseNumber(e.target.value)}
+                                placeholder="Business License Number"
+                                className="w-full bg-surface-light/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
+                            />
+                        </div>
                     </div>
                 </div>
 
                 <div className="pt-4 border-t border-white/5 flex justify-end">
                     <button
                         onClick={handleSave}
-                        disabled={isSaving}
-                        className="bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-colors font-medium shadow-lg shadow-primary/20 disabled:opacity-50"
+                        disabled={isSaving || !isDirty}
+                        className={`px-6 py-3 rounded-xl flex items-center gap-2 transition-colors font-medium shadow-lg ${isDirty
+                            ? 'bg-primary hover:bg-primary-dark text-white shadow-primary/20'
+                            : 'bg-white/10 text-white/50 cursor-not-allowed'
+                            }`}
                     >
                         {isSaving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                        Save Changes
+                        {isDirty ? 'Save Changes' : 'Saved'}
                     </button>
                 </div>
             </div>

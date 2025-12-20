@@ -8,6 +8,7 @@ const Layout = () => {
 
     return (
         <div className="min-h-screen bg-background text-text-main">
+
             <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
             {/* Mobile Header */}

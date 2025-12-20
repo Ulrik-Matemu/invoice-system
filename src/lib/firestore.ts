@@ -41,6 +41,12 @@ export interface Invoice {
     companyName?: string;
     companyAddress?: string;
     companyEmail?: string;
+    companyPhone?: string;
+    companyWebsite?: string;
+    companyTaxId?: string; // TIN
+    companyTaxNumber?: string; // VRN
+    companyLicenseNumber?: string;
+    templateId?: 'standard' | 'premium';
 }
 
 export const addInvoice = async (invoiceData: Omit<Invoice, 'id' | 'createdAt'>) => {
@@ -179,12 +185,27 @@ export const deleteClient = async (clientId: string) => {
 
 // User Settings
 
+export interface ServiceTypeConfig {
+    name: string;
+    requiresDates: boolean;
+    descriptionLabel: string;
+}
+
 export interface UserSettings {
     userId: string;
     taxRate: number;
     companyName?: string;
     companyAddress?: string;
     companyEmail?: string;
+    companyPhone?: string;
+    companyWebsite?: string;
+    companyTaxId?: string; // TIN
+    companyTaxNumber?: string; // VRN
+    companyLicenseNumber?: string;
+    defaultTemplate?: 'standard' | 'premium';
+    hasSeenTour?: boolean;
+    serviceTypes?: ServiceTypeConfig[];
+    enableAgentDetails?: boolean;
 }
 
 export const getUserSettings = async (userId: string) => {

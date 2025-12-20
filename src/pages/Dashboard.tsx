@@ -52,7 +52,7 @@ const Dashboard = () => {
                 <p className="text-text-muted">Welcome back, here's what's happening today.</p>
             </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div id="dashboard-stats" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {statItems.map((stat, index) => (
                     <div key={index} className="glass-panel p-6 rounded-2xl hover:bg-surface/90 transition-colors">
                         <div className="flex justify-between items-start mb-4">
