@@ -12,7 +12,7 @@ const Layout = () => {
             <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
             {/* Mobile Header */}
-            <div className="md:hidden p-4 flex items-center gap-4 border-b border-white/5 bg-background/50 backdrop-blur-md sticky top-0 z-30">
+            <div className="md:hidden p-4 flex items-center gap-4 border-b border-white/5 bg-background/50 backdrop-blur-md sticky top-0 z-30 print:hidden">
                 <button
                     onClick={() => setIsSidebarOpen(true)}
                     className="p-2 -ml-2 text-text-muted hover:text-white"

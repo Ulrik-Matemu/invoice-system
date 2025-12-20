@@ -68,7 +68,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
             )}
 
             <aside className={clsx(
-                "fixed left-0 top-0 h-full w-64 glass-sidebar flex flex-col z-50 transition-transform duration-300 ease-in-out md:translate-x-0",
+                "fixed left-0 top-0 h-full w-64 glass-sidebar flex flex-col z-50 transition-transform duration-300 ease-in-out md:translate-x-0 print:hidden",
                 isOpen ? "translate-x-0" : "-translate-x-full"
             )}>
                 <div className="p-6 flex items-center justify-between">
