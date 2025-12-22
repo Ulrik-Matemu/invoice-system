@@ -1,5 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Plus, Mail, Phone, Trash2, Loader2, X } from 'lucide-react';
+import Plus from 'lucide-react/dist/esm/icons/plus';
+import Mail from 'lucide-react/dist/esm/icons/mail';
+import Phone from 'lucide-react/dist/esm/icons/phone';
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
+import X from 'lucide-react/dist/esm/icons/x';
 import { useAuth } from '../context/AuthContext';
 import { getClients, addClient, deleteClient, type Client } from '../lib/firestore';
 

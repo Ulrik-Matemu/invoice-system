@@ -1,14 +1,12 @@
 import { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import {
-    LayoutDashboard,
-    FileText,
-    Users,
-    Settings,
-    LogOut,
-    Compass,
-    X
-} from 'lucide-react';
+import LayoutDashboard from 'lucide-react/dist/esm/icons/layout-dashboard';
+import FileText from 'lucide-react/dist/esm/icons/file-text';
+import Users from 'lucide-react/dist/esm/icons/users';
+import Settings from 'lucide-react/dist/esm/icons/settings';
+import LogOut from 'lucide-react/dist/esm/icons/log-out';
+import Compass from 'lucide-react/dist/esm/icons/compass';
+import X from 'lucide-react/dist/esm/icons/x';
 import { clsx } from 'clsx';
 
 import { useAuth } from '../context/AuthContext';

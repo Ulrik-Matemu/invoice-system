@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Menu } from 'lucide-react';
+import Menu from 'lucide-react/dist/esm/icons/menu';
 import Sidebar from './Sidebar';
 
 const Layout = () => {

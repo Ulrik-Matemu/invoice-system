@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Save, Plus, Trash2, Calendar, Loader2, Printer } from 'lucide-react';
+import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
+import Save from 'lucide-react/dist/esm/icons/save';
+import Plus from 'lucide-react/dist/esm/icons/plus';
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
+import Calendar from 'lucide-react/dist/esm/icons/calendar';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
+import Printer from 'lucide-react/dist/esm/icons/printer';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import { useAuth } from '../context/AuthContext';

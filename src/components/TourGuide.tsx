@@ -3,7 +3,7 @@ import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import { useAuth } from '../context/AuthContext';
 import { getUserSettings, updateUserSettings } from '../lib/firestore';
-import { HelpCircle } from 'lucide-react';
+import HelpCircle from 'lucide-react/dist/esm/icons/help-circle';
 
 export const TourGuide = () => {
     const { user } = useAuth();

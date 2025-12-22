@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, MoreVertical, FileText, Loader2 } from 'lucide-react';
+import Plus from 'lucide-react/dist/esm/icons/plus';
+import Search from 'lucide-react/dist/esm/icons/search';
+import MoreVertical from 'lucide-react/dist/esm/icons/more-vertical';
+import FileText from 'lucide-react/dist/esm/icons/file-text';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
 import { clsx } from 'clsx';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';

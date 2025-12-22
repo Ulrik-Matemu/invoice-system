@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Save, Loader2, Plus, X } from 'lucide-react';
+import Save from 'lucide-react/dist/esm/icons/save';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
+import Plus from 'lucide-react/dist/esm/icons/plus';
+import X from 'lucide-react/dist/esm/icons/x';
 import { useAuth } from '../context/AuthContext';
 import { useBlocker } from 'react-router-dom';
 import { getUserSettings, updateUserSettings, type ServiceTypeConfig } from '../lib/firestore';

@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
-import { TrendingUp, Clock, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
+import TrendingUp from 'lucide-react/dist/esm/icons/trending-up';
+import Clock from 'lucide-react/dist/esm/icons/clock';
+import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
+import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
+import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
 import { useAuth } from '../context/AuthContext';
 import { getDashboardStats } from '../lib/firestore';
 
