@@ -49,7 +49,7 @@ const Dashboard = () => {
         <div className="space-y-8">
             <header>
                 <h1 className="text-3xl font-bold text-white mb-2">Dashboard</h1>
-                <p className="text-text-muted">Welcome back, here's what's happening today.</p>
+
             </header>
 
             <div id="dashboard-stats" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
