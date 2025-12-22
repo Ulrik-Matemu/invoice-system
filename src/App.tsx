@@ -1,14 +1,17 @@
+import React, { Suspense } from 'react';
 import { createBrowserRouter, RouterProvider, Route, createRoutesFromElements } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
-import Dashboard from './pages/Dashboard';
-import Invoices from './pages/Invoices';
-import InvoiceForm from './pages/InvoiceForm';
-import Clients from './pages/Clients';
-import Settings from './pages/Settings';
-import Login from './pages/Login';
-import SignUp from './pages/SignUp';
+
+// Lazy load pages
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const Invoices = React.lazy(() => import('./pages/Invoices'));
+const InvoiceForm = React.lazy(() => import('./pages/InvoiceForm'));
+const Clients = React.lazy(() => import('./pages/Clients'));
+const Settings = React.lazy(() => import('./pages/Settings'));
+const Login = React.lazy(() => import('./pages/Login'));
+const SignUp = React.lazy(() => import('./pages/SignUp'));
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -35,7 +38,13 @@ const router = createBrowserRouter(
 function App() {
   return (
     <AuthProvider>
-      <RouterProvider router={router} />
+      <Suspense fallback={
+        <div className="flex items-center justify-center min-h-screen bg-[#020e1bff]">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#64ffda]"></div>
+        </div>
+      }>
+        <RouterProvider router={router} />
+      </Suspense>
     </AuthProvider>
   );
 }
