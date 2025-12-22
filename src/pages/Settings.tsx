@@ -3,6 +3,7 @@ import { Save, Loader2, Plus, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useBlocker } from 'react-router-dom';
 import { getUserSettings, updateUserSettings, type ServiceTypeConfig } from '../lib/firestore';
+import Swal from 'sweetalert2';
 
 const Settings = () => {
     const { user } = useAuth();
@@ -25,6 +26,8 @@ const Settings = () => {
     const [newServiceLabel, setNewServiceLabel] = useState('Description');
     const [initialSettings, setInitialSettings] = useState<string>('');
     const [isDirty, setIsDirty] = useState(false);
+
+
 
     useEffect(() => {
         const fetchSettings = async () => {
@@ -140,17 +143,31 @@ const Settings = () => {
 
     useEffect(() => {
         if (blocker.state === "blocked") {
-            const proceed = window.confirm("You have unsaved changes. Are you sure you want to leave?");
-            if (proceed) {
-                blocker.proceed();
-            } else {
-                blocker.reset();
-            }
+            Swal.fire({
+                title: "Do you want to save changes?",
+                showDenyButton: true,
+                showCancelButton: true,
+                confirmButtonText: "Save",
+                denyButtonText: `Don't save`,
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    const success = await handleSave();
+                    if (success) {
+                        blocker.proceed();
+                    } else {
+                        blocker.reset();
+                    }
+                } else if (result.isDenied) {
+                    blocker.proceed();
+                } else {
+                    blocker.reset();
+                }
+            });
         }
     }, [blocker]);
 
     const handleSave = async () => {
-        if (!user) return;
+        if (!user) return false;
         setIsSaving(true);
         try {
             const newSettings = {
@@ -186,10 +203,22 @@ const Settings = () => {
             }));
             setIsDirty(false);
 
-            alert('Settings saved successfully');
+            Swal.fire({
+                title: 'Settings saved successfully',
+                icon: 'success',
+                showConfirmButton: false,
+                timer: 1000
+            })
+            return true;
         } catch (error) {
             console.error("Error saving settings:", error);
-            alert('Failed to save settings');
+            Swal.fire({
+                title: 'Failed to save settings',
+                icon: 'error',
+                showConfirmButton: false,
+                timer: 1500
+            })
+            return false;
         } finally {
             setIsSaving(false);
         }
@@ -224,7 +253,7 @@ const Settings = () => {
         <div className="max-w-2xl mx-auto">
             <h1 className="text-3xl font-bold text-white mb-8">Settings</h1>
 
-            <div className="glass-panel p-8 rounded-2xl space-y-8">
+            <div className="glass-panel p-4 md:p-8 rounded-2xl space-y-8 mb-20 md:mb-0">
                 <div>
                     <h2 className="text-xl font-bold text-white mb-4">Invoice Configuration</h2>
                     <div className="space-y-4">
@@ -254,7 +283,7 @@ const Settings = () => {
                             </div>
                             <button
                                 onClick={() => setEnableAgentDetails(!enableAgentDetails)}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${enableAgentDetails ? 'bg-primary' : 'bg-white/20'
+                                className={`relative inline-flex h-6 w-1/2 md:w-11 items-center rounded-full transition-colors ${enableAgentDetails ? 'bg-primary' : 'bg-white/20'
                                     }`}
                             >
                                 <span
