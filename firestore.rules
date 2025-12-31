@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // User Profiles
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      // Allow users to create/update their profile (including isPro/invoiceCount for this demo)
+      allow create, update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    // Invoices
+    match /invoices/{invoiceId} {
+      allow read: if resource.data.userId == request.auth.uid;
+      allow delete: if resource.data.userId == request.auth.uid;
+      
+      allow create: if isAuthenticated() 
+        && request.resource.data.userId == request.auth.uid
+        && (
+          // Allow if user is Pro
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isPro == true
+          ||
+          // OR if invoice count is less than 5 (Note: this relies on the counter being accurate)
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.invoiceCount < 5
+          ||
+          // Handle case where user doc might not exist yet or count is missing (optional, but good for safety)
+          !exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        );
+
+      allow update: if resource.data.userId == request.auth.uid 
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Clients
+    match /clients/{clientId} {
+      allow read: if resource.data.userId == request.auth.uid;
+      allow delete: if resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Settings
+    match /settings/{userId} {
+      allow read, write, delete: if isOwner(userId);
+    }
+  }
+}

@@ -4,12 +4,13 @@ import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
 import Plus from 'lucide-react/dist/esm/icons/plus';
 import X from 'lucide-react/dist/esm/icons/x';
 import { useAuth } from '../context/AuthContext';
-import { useBlocker } from 'react-router-dom';
-import { getUserSettings, updateUserSettings, type ServiceTypeConfig } from '../lib/firestore';
+import { useBlocker, useNavigate } from 'react-router-dom';
+import { getUserSettings, updateUserSettings, deleteUserAccount, type ServiceTypeConfig } from '../lib/firestore';
 import Swal from 'sweetalert2';
 
 const Settings = () => {
-    const { user } = useAuth();
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
     const [taxRate, setTaxRate] = useState(10); // Display as percentage
@@ -224,6 +225,59 @@ const Settings = () => {
             return false;
         } finally {
             setIsSaving(false);
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        if (!user) return;
+
+        const result = await Swal.fire({
+            title: 'Delete Account?',
+            text: "This will permanently delete all your data, including invoices and clients. This action cannot be undone.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#3b82f6',
+            confirmButtonText: 'Yes, delete my account'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                setIsLoading(true);
+                // 1. Delete Firestore data
+                await deleteUserAccount(user.uid);
+
+                // 2. Delete Auth user
+                await user.delete();
+
+                // 3. Cleanup local state
+                await logout();
+
+                navigate('/login');
+
+                Swal.fire(
+                    'Deleted!',
+                    'Your account has been deleted.',
+                    'success'
+                );
+            } catch (error: any) {
+                console.error("Error deleting account:", error);
+                // If requires recent login
+                if (error.code === 'auth/requires-recent-login') {
+                    Swal.fire(
+                        'Login Required',
+                        'Please log out and log back in to delete your account.',
+                        'error'
+                    );
+                } else {
+                    Swal.fire(
+                        'Error',
+                        'Failed to delete account. Please try again.',
+                        'error'
+                    );
+                }
+                setIsLoading(false);
+            }
         }
     };
 
@@ -488,6 +542,23 @@ const Settings = () => {
                     </div>
                 </div>
 
+
+                <div>
+                    <h2 className="text-xl font-bold text-red-400 mb-4">Danger Zone</h2>
+                    <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+                        <h3 className="font-bold text-white mb-2">Delete Account</h3>
+                        <p className="text-sm text-text-muted mb-4">
+                            Permanently delete your account and all associated data. This action cannot be undone.
+                        </p>
+                        <button
+                            onClick={handleDeleteAccount}
+                            className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/50 rounded-lg transition-colors text-sm font-medium"
+                        >
+                            Delete Account
+                        </button>
+                    </div>
+                </div>
+
                 <div className="pt-4 border-t border-white/5 flex justify-end">
                     <button
                         onClick={handleSave}
@@ -502,7 +573,7 @@ const Settings = () => {
                     </button>
                 </div>
             </div>
-        </div>
+        </div >
     );
 };
 

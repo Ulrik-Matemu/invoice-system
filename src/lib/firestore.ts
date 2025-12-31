@@ -245,6 +245,32 @@ export const getClients = async (userId: string) => {
     }
 };
 
+export const deleteUserAccount = async (userId: string) => {
+    try {
+        // Delete invoices
+        const invoices = await getInvoices(userId);
+        for (const invoice of invoices) {
+            if (invoice.id) await deleteDoc(doc(db, 'invoices', invoice.id));
+        }
+
+        // Delete clients
+        const clients = await getClients(userId);
+        for (const client of clients) {
+            if (client.id) await deleteDoc(doc(db, 'clients', client.id));
+        }
+
+        // Delete settings
+        await deleteDoc(doc(db, 'settings', userId));
+
+        // Delete user profile
+        await deleteDoc(doc(db, 'users', userId));
+
+    } catch (error) {
+        console.error("Error deleting user account:", error);
+        throw error;
+    }
+};
+
 export const deleteClient = async (clientId: string) => {
     try {
         await deleteDoc(doc(db, 'clients', clientId));
