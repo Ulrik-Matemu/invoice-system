@@ -202,6 +202,22 @@ export const updateInvoice = async (invoiceId: string, invoiceData: Partial<Invo
     }
 };
 
+export const deleteInvoice = async (invoiceId: string, userId: string) => {
+    try {
+        // Delete the invoice
+        await deleteDoc(doc(db, 'invoices', invoiceId));
+
+        // Decrement invoice count
+        const userRef = doc(db, 'users', userId);
+        await updateDoc(userRef, {
+            invoiceCount: increment(-1)
+        });
+    } catch (error) {
+        console.error("Error deleting invoice:", error);
+        throw error;
+    }
+};
+
 // Client Management
 
 export interface Client {

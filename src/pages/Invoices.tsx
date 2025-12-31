@@ -4,10 +4,12 @@ import Search from 'lucide-react/dist/esm/icons/search';
 import MoreVertical from 'lucide-react/dist/esm/icons/more-vertical';
 import FileText from 'lucide-react/dist/esm/icons/file-text';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
 import { clsx } from 'clsx';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getInvoices, type Invoice } from '../lib/firestore';
+import { getInvoices, deleteInvoice, type Invoice } from '../lib/firestore';
+import Swal from 'sweetalert2';
 
 const Invoices = () => {
     const { user } = useAuth();
@@ -15,6 +17,7 @@ const Invoices = () => {
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
+    const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchInvoices = async () => {
@@ -52,6 +55,51 @@ const Invoices = () => {
 
         return matchesSearch && matchesStatus;
     });
+
+    const handleDelete = async (invoice: Invoice) => {
+        setOpenDropdownId(null);
+
+        if (!user || !invoice.id) return;
+
+        const result = await Swal.fire({
+            title: 'Delete Invoice?',
+            text: `Are you sure you want to delete invoice ${invoice.invoiceNumber}? This action cannot be undone.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            cancelButtonColor: '#3b82f6',
+            confirmButtonText: 'Yes, delete it'
+        });
+
+        if (result.isConfirmed) {
+            try {
+                await deleteInvoice(invoice.id, user.uid);
+                setInvoices(invoices.filter(i => i.id !== invoice.id));
+                Swal.fire({
+                    title: 'Deleted!',
+                    text: 'Invoice has been deleted.',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+            } catch (error) {
+                console.error("Error deleting invoice:", error);
+                Swal.fire('Error', 'Failed to delete invoice.', 'error');
+            }
+        }
+    };
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (openDropdownId && !(event.target as Element).closest('.dropdown-container')) {
+                setOpenDropdownId(null);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [openDropdownId]);
 
     if (loading) {
         return (
@@ -144,9 +192,26 @@ const Invoices = () => {
                                                 >
                                                     <FileText className="w-5 h-5" />
                                                 </Link>
-                                                <button className="p-2 rounded-lg text-text-muted hover:text-white hover:bg-white/10 transition-colors">
-                                                    <MoreVertical className="w-5 h-5" />
-                                                </button>
+                                                <div className="relative dropdown-container">
+                                                    <button
+                                                        onClick={() => setOpenDropdownId(openDropdownId === invoice.id ? null : (invoice.id || null))}
+                                                        className={`p-2 rounded-lg transition-colors ${openDropdownId === invoice.id ? 'text-white bg-white/10' : 'text-text-muted hover:text-white hover:bg-white/10'}`}
+                                                    >
+                                                        <MoreVertical className="w-5 h-5" />
+                                                    </button>
+
+                                                    {openDropdownId === invoice.id && (
+                                                        <div className="absolute right-0 mt-2 w-48 bg-[#112240] border border-white/10 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                                            <button
+                                                                onClick={() => handleDelete(invoice)}
+                                                                className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 flex items-center gap-2 transition-colors"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                                Delete Invoice
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </td>
                                     </tr>
