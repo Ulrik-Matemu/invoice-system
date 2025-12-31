@@ -11,12 +11,14 @@ import { useReactToPrint } from 'react-to-print';
 import { useAuth } from '../context/AuthContext';
 import { addInvoice, getInvoice, updateInvoice, getUserSettings, getClients, type Invoice, type Client, type ServiceTypeConfig } from '../lib/firestore';
 import { InvoicePDF } from '../components/InvoicePDF';
+import { UpgradeModal } from '../components/UpgradeModal';
 
 const InvoiceForm = () => {
     const navigate = useNavigate();
     const { id } = useParams();
-    const { user } = useAuth();
+    const { user, userProfile } = useAuth();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [isLoading, setIsLoading] = useState(!!id);
     const [clients, setClients] = useState<Client[]>([]);
 
@@ -197,6 +199,12 @@ const InvoiceForm = () => {
         e.preventDefault();
         if (!user) return;
 
+        // Check limits for new invoices
+        if (!id && userProfile && !userProfile.isPro && userProfile.invoiceCount >= 5) {
+            setShowUpgradeModal(true);
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const invoiceData = {
@@ -232,9 +240,13 @@ const InvoiceForm = () => {
                 await addInvoice(invoiceData);
             }
             navigate('/invoices');
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error saving invoice:", error);
-            alert("Failed to save invoice");
+            if (error.message === "Free limit reached. Please upgrade to Pro.") {
+                setShowUpgradeModal(true);
+            } else {
+                alert("Failed to save invoice");
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -578,6 +590,11 @@ const InvoiceForm = () => {
                     </div>
                 </div>
             </form>
+
+            <UpgradeModal
+                isOpen={showUpgradeModal}
+                onClose={() => setShowUpgradeModal(false)}
+            />
         </div>
     );
 };

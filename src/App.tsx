@@ -2,7 +2,6 @@ import React, { Suspense } from 'react';
 import { createBrowserRouter, RouterProvider, Route, createRoutesFromElements } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
-
 const Layout = React.lazy(() => import('./components/Layout'));
 
 // Lazy load pages

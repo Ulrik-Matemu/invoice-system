@@ -7,13 +7,16 @@ import {
     onAuthStateChanged
 } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import { createUserProfile, getUserProfile, type UserProfile } from '../lib/firestore';
 
 interface AuthContextType {
     user: User | null;
+    userProfile: UserProfile | null;
     loading: boolean;
     signIn: (email: string, password: string) => Promise<void>;
     signUp: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
+    refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -28,11 +31,33 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
 
+    const refreshProfile = async () => {
+        if (user) {
+            const profile = await getUserProfile(user.uid);
+            setUserProfile(profile);
+        }
+    };
+
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setUser(currentUser);
+            if (currentUser) {
+                try {
+                    // Create or get user profile
+                    const profile = await createUserProfile({
+                        uid: currentUser.uid,
+                        email: currentUser.email
+                    });
+                    setUserProfile(profile);
+                } catch (error) {
+                    console.error("Error fetching user profile:", error);
+                }
+            } else {
+                setUserProfile(null);
+            }
             setLoading(false);
         });
 
@@ -49,14 +74,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const logout = async () => {
         await signOut(auth);
+        setUserProfile(null);
     };
 
     const value = {
         user,
+        userProfile,
         loading,
         signIn,
         signUp,
-        logout
+        logout,
+        refreshProfile
     };
 
     return (

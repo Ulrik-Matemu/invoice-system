@@ -9,7 +9,9 @@ import {
     doc,
     getDoc,
     deleteDoc,
-    updateDoc
+    updateDoc,
+    setDoc,
+    increment
 } from 'firebase/firestore';
 import { db } from './db';
 
@@ -49,12 +51,81 @@ export interface Invoice {
     templateId?: 'standard' | 'premium';
 }
 
+export const updateUserProfile = async (uid: string, data: Partial<UserProfile>) => {
+    try {
+        const docRef = doc(db, 'users', uid);
+        await updateDoc(docRef, data);
+    } catch (error) {
+        console.error("Error updating user profile:", error);
+        throw error;
+    }
+};
+
+export interface UserProfile {
+    uid: string;
+    email: string;
+    isPro: boolean;
+    invoiceCount: number;
+}
+
+export const getUserProfile = async (uid: string) => {
+    try {
+        const docRef = doc(db, 'users', uid);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            return docSnap.data() as UserProfile;
+        }
+        return null;
+    } catch (error) {
+        console.error("Error getting user profile:", error);
+        throw error;
+    }
+};
+
+export const createUserProfile = async (user: { uid: string; email: string | null }) => {
+    try {
+        const docRef = doc(db, 'users', user.uid);
+        const docSnap = await getDoc(docRef);
+
+        if (!docSnap.exists()) {
+            const newProfile: UserProfile = {
+                uid: user.uid,
+                email: user.email || '',
+                isPro: false,
+                invoiceCount: 0
+            };
+            await setDoc(docRef, newProfile);
+            return newProfile;
+        }
+        return docSnap.data() as UserProfile;
+    } catch (error) {
+        console.error("Error creating user profile:", error);
+        throw error;
+    }
+};
+
 export const addInvoice = async (invoiceData: Omit<Invoice, 'id' | 'createdAt'>) => {
     try {
+        // Check user limits
+        const userProfile = await getUserProfile(invoiceData.userId);
+
+        if (userProfile) {
+            if (!userProfile.isPro && userProfile.invoiceCount >= 5) {
+                throw new Error("Free limit reached. Please upgrade to Pro.");
+            }
+        }
+
         const docRef = await addDoc(collection(db, 'invoices'), {
             ...invoiceData,
             createdAt: Timestamp.now(),
         });
+
+        // Increment invoice count
+        const userRef = doc(db, 'users', invoiceData.userId);
+        await updateDoc(userRef, {
+            invoiceCount: increment(1)
+        });
+
         return docRef.id;
     } catch (error) {
         console.error("Error adding invoice: ", error);

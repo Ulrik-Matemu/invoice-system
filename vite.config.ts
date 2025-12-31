@@ -9,7 +9,7 @@ export default defineConfig({
     injectRegister: null,
     registerType: 'autoUpdate', devOptions: { enabled: true },
     manifest: {
-      name: 'myInvo: Invoice System',
+      name: 'myInvo: Smart Invoicing',
       short_name: 'myInvo',
       start_url: '/',
       display: 'standalone',
