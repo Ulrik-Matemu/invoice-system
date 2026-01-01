@@ -5,7 +5,7 @@
         ],
         "target": {
             "namespace": "android_app",
-            "package_name": "app.netlify.my-invo",
+            "package_name": "twa.app.netlify.my-invo",
             "sha256_cert_fingerprints": [
                 "2C:EC:C2:1F:CB:60:12:77:14:17:5E:EC:0A:E3:3A:D9:18:1E:8E:8A:AA:FC:6A:40:04:17:B0:FC:FF:5E:8B:FC"
             ]
