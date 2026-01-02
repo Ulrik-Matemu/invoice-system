@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Plus from 'lucide-react/dist/esm/icons/plus';
 import Mail from 'lucide-react/dist/esm/icons/mail';
 import Phone from 'lucide-react/dist/esm/icons/phone';
@@ -6,12 +6,13 @@ import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
 import X from 'lucide-react/dist/esm/icons/x';
 import { useAuth } from '../context/AuthContext';
-import { getClients, addClient, deleteClient, type Client } from '../lib/firestore';
+import { addClient, deleteClient } from '../lib/firestore';
+
+import { useCache } from '../context/CacheContext';
 
 const Clients = () => {
     const { user } = useAuth();
-    const [clients, setClients] = useState<Client[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { clients, loading } = useCache();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -22,23 +23,6 @@ const Clients = () => {
         phone: '',
         address: ''
     });
-
-    const fetchClients = async () => {
-        if (user) {
-            try {
-                const data = await getClients(user.uid);
-                setClients(data);
-            } catch (error) {
-                console.error("Error fetching clients:", error);
-            } finally {
-                setLoading(false);
-            }
-        }
-    };
-
-    useEffect(() => {
-        fetchClients();
-    }, [user]);
 
     const handleAddClient = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -52,7 +36,7 @@ const Clients = () => {
             });
             setIsModalOpen(false);
             setNewClient({ name: '', email: '', phone: '', address: '' });
-            fetchClients(); // Refresh list
+            // fetchClients(); // Refresh list - Handled by CacheContext
         } catch (error) {
             console.error("Error adding client:", error);
             alert("Failed to add client");
@@ -65,7 +49,7 @@ const Clients = () => {
         if (confirm('Are you sure you want to delete this client?')) {
             try {
                 await deleteClient(id);
-                setClients(clients.filter(c => c.id !== id));
+                // setClients(clients.filter(c => c.id !== id)); // Handled by CacheContext
             } catch (error) {
                 console.error("Error deleting client:", error);
                 alert("Failed to delete client");

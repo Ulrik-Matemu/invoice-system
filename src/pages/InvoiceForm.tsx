@@ -9,17 +9,21 @@ import Printer from 'lucide-react/dist/esm/icons/printer';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import { useAuth } from '../context/AuthContext';
-import { addInvoice, getInvoice, updateInvoice, getUserSettings, getClients, type Invoice, type Client, type ServiceTypeConfig } from '../lib/firestore';
+import { addInvoice, updateInvoice, type Invoice, type Client, type ServiceTypeConfig } from '../lib/firestore';
 import { InvoicePDF } from '../components/InvoicePDF';
 import { UpgradeModal } from '../components/UpgradeModal';
+
+import { useCache } from '../context/CacheContext';
 
 const InvoiceForm = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const { user, userProfile } = useAuth();
+    const { invoices, clients: cachedClients, settings: cachedSettings, loading: cacheLoading } = useCache();
+
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-    const [isLoading, setIsLoading] = useState(!!id);
+    // const [isLoading, setIsLoading] = useState(!!id); // Use cacheLoading
     const [clients, setClients] = useState<Client[]>([]);
 
     const [clientName, setClientName] = useState('');
@@ -62,104 +66,115 @@ const InvoiceForm = () => {
         documentTitle: `Invoice-${invoiceNumber}`,
     });
 
+    const dataLoadedRef = useRef<string | boolean>(false);
+
     useEffect(() => {
-        const fetchData = async () => {
-            if (user) {
-                try {
-                    // Fetch user settings for default tax rate and company details
-                    const settings = await getUserSettings(user.uid);
-                    setTaxRate(settings.taxRate);
-                    setCompanyDetails({
-                        name: settings.companyName || '',
-                        address: settings.companyAddress || '',
-                        email: settings.companyEmail || '',
-                        phone: settings.companyPhone || '',
-                        website: settings.companyWebsite || '',
-                        taxId: settings.companyTaxId || '',
-                        taxNumber: settings.companyTaxNumber || '',
-                        licenseNumber: settings.companyLicenseNumber || ''
-                    });
-                    setTemplateId(settings.defaultTemplate || 'standard');
-                    if (settings.serviceTypes && settings.serviceTypes.length > 0) {
-                        // Handle migration from string[] to ServiceTypeConfig[]
-                        const loadedServices = settings.serviceTypes;
-                        const normalizedServices: ServiceTypeConfig[] = loadedServices.map((s: any) => {
-                            if (typeof s === 'string') {
-                                return {
-                                    name: s,
-                                    requiresDates: ['Hotel', 'Safari', 'Flight', 'Custom Package'].includes(s),
-                                    descriptionLabel: s === 'Hotel' ? 'Hotel Name' :
-                                        s === 'Safari' ? 'Safari Details' :
-                                            s === 'Flight' ? 'Flight Details' :
-                                                'Description'
-                                };
-                            }
-                            return s;
-                        });
-                        setServiceTypes(normalizedServices);
+        if (cacheLoading || !user) return;
 
-                        // Update initial item if it exists and hasn't been modified
-                        // We check if it's the default 'Hotel' or 'Service' and has no description
-                        if (items.length === 1 && (items[0].serviceType === 'Hotel' || items[0].serviceType === 'Service') && !items[0].description) {
-                            const firstService = normalizedServices[0];
-                            if (firstService) {
-                                setItems([{
-                                    ...items[0],
-                                    serviceType: firstService.name,
-                                    // We don't set description here to keep it empty for the user to fill
-                                }]);
-                            }
-                        }
-                    } else {
-                        // Default services if none found
-                        setServiceTypes([
-                            { name: 'Service', requiresDates: false, descriptionLabel: 'Description' },
-                            { name: 'Product', requiresDates: false, descriptionLabel: 'Description' },
-                            { name: 'Hours', requiresDates: false, descriptionLabel: 'Description' }
-                        ]);
+        // Prevent re-populating if already loaded for this ID (unless ID changes)
+        // We use a ref to track if we've initialized the form
+        if (dataLoadedRef.current && id === dataLoadedRef.current) return;
+
+        // If id changed, reset loaded flag (though component might remount)
+        // Actually, if component stays mounted and id changes, we need to handle it.
+        // But usually router remounts or we can track previous ID.
+
+        // Initialize from Settings
+        if (cachedSettings) {
+            setTaxRate(cachedSettings.taxRate);
+            setCompanyDetails({
+                name: cachedSettings.companyName || '',
+                address: cachedSettings.companyAddress || '',
+                email: cachedSettings.companyEmail || '',
+                phone: cachedSettings.companyPhone || '',
+                website: cachedSettings.companyWebsite || '',
+                taxId: cachedSettings.companyTaxId || '',
+                taxNumber: cachedSettings.companyTaxNumber || '',
+                licenseNumber: cachedSettings.companyLicenseNumber || ''
+            });
+            setTemplateId(cachedSettings.defaultTemplate || 'standard');
+
+            if (cachedSettings.serviceTypes && cachedSettings.serviceTypes.length > 0) {
+                // Handle migration from string[] to ServiceTypeConfig[]
+                const loadedServices = cachedSettings.serviceTypes;
+                const normalizedServices: ServiceTypeConfig[] = loadedServices.map((s: any) => {
+                    if (typeof s === 'string') {
+                        return {
+                            name: s,
+                            requiresDates: ['Hotel', 'Safari', 'Flight', 'Custom Package'].includes(s),
+                            descriptionLabel: s === 'Hotel' ? 'Hotel Name' :
+                                s === 'Safari' ? 'Safari Details' :
+                                    s === 'Flight' ? 'Flight Details' :
+                                        'Description'
+                        };
                     }
-                    setEnableAgentDetails(settings.enableAgentDetails !== undefined ? settings.enableAgentDetails : true);
+                    return s;
+                });
+                setServiceTypes(normalizedServices);
 
-                    // Fetch clients for suggestions
-                    const clientsData = await getClients(user.uid);
-                    setClients(clientsData);
-
-                    if (id) {
-                        const invoiceData = await getInvoice(id);
-                        if (invoiceData) {
-                            setInvoiceNumber(invoiceData.invoiceNumber);
-                            setClientName(invoiceData.clientName);
-                            setAgentName(invoiceData.agentName || '');
-                            setClientType(invoiceData.clientType);
-                            setDueDate(invoiceData.dueDate);
-                            setStatus(invoiceData.status);
-                            // If invoice has a stored tax rate, use it. Otherwise keep default from settings
-                            if (invoiceData.taxRate !== undefined) {
-                                setTaxRate(invoiceData.taxRate);
-                            }
-                            if (invoiceData.templateId) {
-                                setTemplateId(invoiceData.templateId);
-                            }
-                            setItems(invoiceData.items.map((item, index) => ({
-                                ...item,
-                                id: index + 1,
-                                serviceType: item.serviceType,
-                                startDate: item.startDate || item.checkIn || '',
-                                endDate: item.endDate || item.checkOut || '',
-                                description: item.description || ''
-                            })));
-                            setCreatedAt(invoiceData.createdAt);
-                        }
+                // Update initial item if it exists and hasn't been modified
+                // Only for NEW invoices
+                if (!id && items.length === 1 && (items[0].serviceType === 'Hotel' || items[0].serviceType === 'Service') && !items[0].description) {
+                    const firstService = normalizedServices[0];
+                    if (firstService) {
+                        setItems([{
+                            ...items[0],
+                            serviceType: firstService.name,
+                        }]);
                     }
-                } catch (error) {
-                    console.error("Error fetching data:", error);
-                } finally {
-                    setIsLoading(false);
                 }
+            } else {
+                setServiceTypes([
+                    { name: 'Service', requiresDates: false, descriptionLabel: 'Description' },
+                    { name: 'Product', requiresDates: false, descriptionLabel: 'Description' },
+                    { name: 'Hours', requiresDates: false, descriptionLabel: 'Description' }
+                ]);
             }
-        };
-        fetchData();
-    }, [user, id]);
+            setEnableAgentDetails(cachedSettings.enableAgentDetails !== undefined ? cachedSettings.enableAgentDetails : true);
+        }
+
+        // Initialize Clients
+        setClients(cachedClients);
+
+        // Initialize Invoice if editing
+        if (id) {
+            const invoiceData = invoices.find(i => i.id === id);
+            if (invoiceData) {
+                setInvoiceNumber(invoiceData.invoiceNumber);
+                setClientName(invoiceData.clientName);
+                setAgentName(invoiceData.agentName || '');
+                setClientType(invoiceData.clientType);
+                setDueDate(invoiceData.dueDate);
+                setStatus(invoiceData.status);
+                if (invoiceData.taxRate !== undefined) {
+                    setTaxRate(invoiceData.taxRate);
+                }
+                if (invoiceData.templateId) {
+                    setTemplateId(invoiceData.templateId);
+                }
+                setItems(invoiceData.items.map((item, index) => ({
+                    ...item,
+                    id: index + 1,
+                    serviceType: item.serviceType,
+                    startDate: item.startDate || item.checkIn || '',
+                    endDate: item.endDate || item.checkOut || '',
+                    description: item.description || ''
+                })));
+                setCreatedAt(invoiceData.createdAt);
+
+                // Mark as loaded for this ID
+                // We store the ID to know WHICH invoice we loaded
+                (dataLoadedRef as any).current = id;
+            } else {
+                // Invoice not found in cache? 
+                // It might not exist.
+                console.warn("Invoice not found in cache");
+            }
+        } else {
+            (dataLoadedRef as any).current = 'new';
+        }
+
+    }, [user, id, cacheLoading, cachedSettings, cachedClients, invoices]);
 
     const addItem = () => {
         setItems([...items, {
@@ -252,7 +267,7 @@ const InvoiceForm = () => {
         }
     };
 
-    if (isLoading) {
+    if (cacheLoading) {
         return (
             <div className="flex items-center justify-center min-h-screen">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />

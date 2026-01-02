@@ -8,33 +8,16 @@ import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
 import { clsx } from 'clsx';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getInvoices, deleteInvoice, type Invoice } from '../lib/firestore';
+import { deleteInvoice, type Invoice } from '../lib/firestore';
 import Swal from 'sweetalert2';
+import { useCache } from '../context/CacheContext';
 
 const Invoices = () => {
     const { user } = useAuth();
-    const [invoices, setInvoices] = useState<Invoice[]>([]);
-    const [loading, setLoading] = useState(true);
+    const { invoices, loading } = useCache();
     const [searchQuery, setSearchQuery] = useState('');
     const [statusFilter, setStatusFilter] = useState('All');
     const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
-
-    useEffect(() => {
-        const fetchInvoices = async () => {
-            if (user) {
-                try {
-                    const data = await getInvoices(user.uid);
-                    setInvoices(data);
-                } catch (error) {
-                    console.error("Error fetching invoices:", error);
-                } finally {
-                    setLoading(false);
-                }
-            }
-        };
-
-        fetchInvoices();
-    }, [user]);
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -74,7 +57,7 @@ const Invoices = () => {
         if (result.isConfirmed) {
             try {
                 await deleteInvoice(invoice.id, user.uid);
-                setInvoices(invoices.filter(i => i.id !== invoice.id));
+                // setInvoices(invoices.filter(i => i.id !== invoice.id)); // Handled by CacheContext
                 Swal.fire({
                     title: 'Deleted!',
                     text: 'Invoice has been deleted.',

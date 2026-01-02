@@ -1,6 +1,7 @@
 import React, { Suspense } from 'react';
 import { createBrowserRouter, RouterProvider, Route, createRoutesFromElements } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { CacheProvider } from './context/CacheContext';
 import ProtectedRoute from './components/ProtectedRoute';
 const Layout = React.lazy(() => import('./components/Layout'));
 
@@ -38,13 +39,15 @@ const router = createBrowserRouter(
 function App() {
   return (
     <AuthProvider>
-      <Suspense fallback={
-        <div className="flex items-center justify-center min-h-screen bg-[#020e1bff]">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#64ffda]"></div>
-        </div>
-      }>
-        <RouterProvider router={router} />
-      </Suspense>
+      <CacheProvider>
+        <Suspense fallback={
+          <div className="flex items-center justify-center min-h-screen bg-[#020e1bff]">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#64ffda]"></div>
+          </div>
+        }>
+          <RouterProvider router={router} />
+        </Suspense>
+      </CacheProvider>
     </AuthProvider>
   );
 }

@@ -5,13 +5,16 @@ import Plus from 'lucide-react/dist/esm/icons/plus';
 import X from 'lucide-react/dist/esm/icons/x';
 import { useAuth } from '../context/AuthContext';
 import { useBlocker, useNavigate } from 'react-router-dom';
-import { getUserSettings, updateUserSettings, deleteUserAccount, type ServiceTypeConfig } from '../lib/firestore';
+import { updateUserSettings, deleteUserAccount, type ServiceTypeConfig } from '../lib/firestore';
 import Swal from 'sweetalert2';
+
+import { useCache } from '../context/CacheContext';
 
 const Settings = () => {
     const { user, logout } = useAuth();
+    const { settings: cachedSettings, loading: cacheLoading } = useCache();
     const navigate = useNavigate();
-    const [isLoading, setIsLoading] = useState(true);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [taxRate, setTaxRate] = useState(10); // Display as percentage
     const [companyName, setCompanyName] = useState('');
@@ -31,78 +34,67 @@ const Settings = () => {
     const [initialSettings, setInitialSettings] = useState<string>('');
     const [isDirty, setIsDirty] = useState(false);
 
-
-
     useEffect(() => {
-        const fetchSettings = async () => {
-            if (user) {
-                try {
-                    const settings = await getUserSettings(user.uid);
-                    setTaxRate(settings.taxRate * 100);
-                    setCompanyName(settings.companyName || '');
-                    setCompanyAddress(settings.companyAddress || '');
-                    setCompanyEmail(settings.companyEmail || '');
-                    setCompanyPhone(settings.companyPhone || '');
-                    setCompanyWebsite(settings.companyWebsite || '');
-                    setCompanyTaxId(settings.companyTaxId || '');
-                    setCompanyTaxNumber(settings.companyTaxNumber || '');
-                    setCompanyLicenseNumber(settings.companyLicenseNumber || '');
-                    setDefaultTemplate(settings.defaultTemplate || 'standard');
-                    // Migration: Convert string[] to ServiceTypeConfig[] if needed
-                    const loadedServices = settings.serviceTypes || [];
-                    const normalizedServices: ServiceTypeConfig[] = loadedServices.map((s: any) => {
-                        if (typeof s === 'string') {
-                            return {
-                                name: s,
-                                requiresDates: ['Hotel', 'Safari', 'Flight', 'Custom Package'].includes(s),
-                                descriptionLabel: s === 'Hotel' ? 'Hotel Name' :
-                                    s === 'Safari' ? 'Safari Details' :
-                                        s === 'Flight' ? 'Flight Details' :
-                                            'Description'
-                            };
-                        }
-                        return s;
-                    });
+        if (cachedSettings) {
+            setTaxRate(cachedSettings.taxRate * 100);
+            setCompanyName(cachedSettings.companyName || '');
+            setCompanyAddress(cachedSettings.companyAddress || '');
+            setCompanyEmail(cachedSettings.companyEmail || '');
+            setCompanyPhone(cachedSettings.companyPhone || '');
+            setCompanyWebsite(cachedSettings.companyWebsite || '');
+            setCompanyTaxId(cachedSettings.companyTaxId || '');
+            setCompanyTaxNumber(cachedSettings.companyTaxNumber || '');
+            setCompanyLicenseNumber(cachedSettings.companyLicenseNumber || '');
+            setDefaultTemplate(cachedSettings.defaultTemplate || 'standard');
 
-                    if (normalizedServices.length === 0) {
-                        setServiceTypes([
-                            { name: 'Service', requiresDates: false, descriptionLabel: 'Description' },
-                            { name: 'Product', requiresDates: false, descriptionLabel: 'Description' },
-                            { name: 'Hours', requiresDates: false, descriptionLabel: 'Description' }
-                        ]);
-                    } else {
-                        setServiceTypes(normalizedServices);
-                    }
-                    setEnableAgentDetails(settings.enableAgentDetails !== undefined ? settings.enableAgentDetails : true);
-
-                    // Store initial state for dirty checking
-                    setInitialSettings(JSON.stringify({
-                        taxRate: settings.taxRate * 100,
-                        companyName: settings.companyName || '',
-                        companyAddress: settings.companyAddress || '',
-                        companyEmail: settings.companyEmail || '',
-                        companyPhone: settings.companyPhone || '',
-                        companyWebsite: settings.companyWebsite || '',
-                        companyTaxId: settings.companyTaxId || '',
-                        companyTaxNumber: settings.companyTaxNumber || '',
-                        companyLicenseNumber: settings.companyLicenseNumber || '',
-                        defaultTemplate: settings.defaultTemplate || 'standard',
-                        serviceTypes: normalizedServices,
-                        enableAgentDetails: settings.enableAgentDetails !== undefined ? settings.enableAgentDetails : true
-                    }));
-                } catch (error) {
-                    console.error("Error fetching settings:", error);
-                } finally {
-                    setIsLoading(false);
+            // Migration: Convert string[] to ServiceTypeConfig[] if needed
+            const loadedServices = cachedSettings.serviceTypes || [];
+            const normalizedServices: ServiceTypeConfig[] = loadedServices.map((s: any) => {
+                if (typeof s === 'string') {
+                    return {
+                        name: s,
+                        requiresDates: ['Hotel', 'Safari', 'Flight', 'Custom Package'].includes(s),
+                        descriptionLabel: s === 'Hotel' ? 'Hotel Name' :
+                            s === 'Safari' ? 'Safari Details' :
+                                s === 'Flight' ? 'Flight Details' :
+                                    'Description'
+                    };
                 }
+                return s;
+            });
+
+            if (normalizedServices.length === 0) {
+                setServiceTypes([
+                    { name: 'Service', requiresDates: false, descriptionLabel: 'Description' },
+                    { name: 'Product', requiresDates: false, descriptionLabel: 'Description' },
+                    { name: 'Hours', requiresDates: false, descriptionLabel: 'Description' }
+                ]);
+            } else {
+                setServiceTypes(normalizedServices);
             }
-        };
-        fetchSettings();
-    }, [user]);
+            setEnableAgentDetails(cachedSettings.enableAgentDetails !== undefined ? cachedSettings.enableAgentDetails : true);
+
+            // Store initial state for dirty checking
+            setInitialSettings(JSON.stringify({
+                taxRate: cachedSettings.taxRate * 100,
+                companyName: cachedSettings.companyName || '',
+                companyAddress: cachedSettings.companyAddress || '',
+                companyEmail: cachedSettings.companyEmail || '',
+                companyPhone: cachedSettings.companyPhone || '',
+                companyWebsite: cachedSettings.companyWebsite || '',
+                companyTaxId: cachedSettings.companyTaxId || '',
+                companyTaxNumber: cachedSettings.companyTaxNumber || '',
+                companyLicenseNumber: cachedSettings.companyLicenseNumber || '',
+                defaultTemplate: cachedSettings.defaultTemplate || 'standard',
+                serviceTypes: normalizedServices,
+                enableAgentDetails: cachedSettings.enableAgentDetails !== undefined ? cachedSettings.enableAgentDetails : true
+            }));
+        }
+    }, [cachedSettings]);
 
     // Check for unsaved changes
     useEffect(() => {
-        if (!isLoading) {
+        if (!cacheLoading) {
             const currentSettings = JSON.stringify({
                 taxRate,
                 companyName,
@@ -119,7 +111,7 @@ const Settings = () => {
             });
             setIsDirty(currentSettings !== initialSettings);
         }
-    }, [taxRate, companyName, companyAddress, companyEmail, companyPhone, companyWebsite, companyTaxId, companyTaxNumber, companyLicenseNumber, defaultTemplate, serviceTypes, enableAgentDetails, initialSettings, isLoading]);
+    }, [taxRate, companyName, companyAddress, companyEmail, companyPhone, companyWebsite, companyTaxId, companyTaxNumber, companyLicenseNumber, defaultTemplate, serviceTypes, enableAgentDetails, initialSettings, cacheLoading]);
 
     // Warn on navigation (Browser Refresh/Close)
     useEffect(() => {
@@ -243,7 +235,7 @@ const Settings = () => {
 
         if (result.isConfirmed) {
             try {
-                setIsLoading(true);
+                setIsDeleting(true);
                 // 1. Delete Firestore data
                 await deleteUserAccount(user.uid);
 
@@ -276,7 +268,7 @@ const Settings = () => {
                         'error'
                     );
                 }
-                setIsLoading(false);
+                setIsDeleting(false);
             }
         }
     };
@@ -298,7 +290,7 @@ const Settings = () => {
         setServiceTypes(serviceTypes.filter(t => t.name !== name));
     };
 
-    if (isLoading) {
+    if (cacheLoading || isDeleting) {
         return (
             <div className="flex items-center justify-center min-h-[50vh]">
                 <Loader2 className="w-8 h-8 animate-spin text-primary" />

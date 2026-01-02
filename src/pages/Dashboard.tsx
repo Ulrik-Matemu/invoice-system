@@ -1,38 +1,21 @@
-import { useEffect, useState } from 'react';
 import TrendingUp from 'lucide-react/dist/esm/icons/trending-up';
 import Clock from 'lucide-react/dist/esm/icons/clock';
 import CheckCircle from 'lucide-react/dist/esm/icons/check-circle';
 import AlertCircle from 'lucide-react/dist/esm/icons/alert-circle';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
-import { useAuth } from '../context/AuthContext';
-import { getDashboardStats } from '../lib/firestore';
+import { useCache } from '../context/CacheContext';
 
 const Dashboard = () => {
-    const { user } = useAuth();
-    const [stats, setStats] = useState({
-        totalRevenue: 0,
-        pendingCount: 0,
-        paidCount: 0,
-        activeClients: 0
-    });
-    const [loading, setLoading] = useState(true);
+    const { invoices, loading } = useCache();
 
-    useEffect(() => {
-        const fetchStats = async () => {
-            if (user) {
-                try {
-                    const data = await getDashboardStats(user.uid);
-                    setStats(data);
-                } catch (error) {
-                    console.error("Error fetching stats:", error);
-                } finally {
-                    setLoading(false);
-                }
-            }
-        };
-
-        fetchStats();
-    }, [user]);
+    const stats = {
+        totalRevenue: invoices
+            .filter(inv => inv.status === 'Paid')
+            .reduce((sum, inv) => sum + inv.totalAmount, 0),
+        pendingCount: invoices.filter(inv => inv.status === 'Pending').length,
+        paidCount: invoices.filter(inv => inv.status === 'Paid').length,
+        activeClients: new Set(invoices.map(inv => inv.clientName)).size
+    };
 
     const statItems = [
         { label: 'Total Revenue', value: `$${stats.totalRevenue.toLocaleString()}`, change: 'Lifetime', icon: TrendingUp, color: 'text-emerald-400' },
