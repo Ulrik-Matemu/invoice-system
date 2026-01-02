@@ -13,6 +13,7 @@ const Clients = React.lazy(() => import('./pages/Clients'));
 const Settings = React.lazy(() => import('./pages/Settings'));
 const Login = React.lazy(() => import('./pages/Login'));
 const SignUp = React.lazy(() => import('./pages/SignUp'));
+const Expenses = React.lazy(() => import('./pages/Expenses'));
 
 const router = createBrowserRouter(
   createRoutesFromElements(
@@ -28,8 +29,9 @@ const router = createBrowserRouter(
         <Route index element={<Dashboard />} />
         <Route path="invoices" element={<Invoices />} />
         <Route path="invoices/new" element={<InvoiceForm />} />
-        <Route path="invoices/:id/edit" element={<InvoiceForm />} />
+        <Route path="invoices/:id" element={<InvoiceForm />} />
         <Route path="clients" element={<Clients />} />
+        <Route path="expenses" element={<Expenses />} />
         <Route path="settings" element={<Settings />} />
       </Route>
     </>

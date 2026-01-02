@@ -38,7 +38,17 @@ service cloud.firestore {
         );
 
       allow update: if resource.data.userId == request.auth.uid 
-        && request.resource.data.userId == request.auth.uid;
+        && request.resource.data.userId == request.auth.uid
+        && (
+          // Allow if user is Pro
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isPro == true
+          ||
+          // OR if they are NOT changing clientName or invoiceNumber
+          (
+            request.resource.data.clientName == resource.data.clientName
+            && request.resource.data.invoiceNumber == resource.data.invoiceNumber
+          )
+        );
     }
 
     // Clients
@@ -47,6 +57,11 @@ service cloud.firestore {
       allow delete: if resource.data.userId == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
       allow update: if resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid;
+    }
+
+    // Expenses
+    match /expenses/{expenseId} {
+      allow read, write, delete: if resource.data.userId == request.auth.uid || (isAuthenticated() && request.resource.data.userId == request.auth.uid);
     }
 
     // Settings

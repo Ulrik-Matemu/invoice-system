@@ -7,11 +7,12 @@ import Settings from 'lucide-react/dist/esm/icons/settings';
 import LogOut from 'lucide-react/dist/esm/icons/log-out';
 import Compass from 'lucide-react/dist/esm/icons/compass';
 import X from 'lucide-react/dist/esm/icons/x';
+import Receipt from 'lucide-react/dist/esm/icons/receipt';
 import { clsx } from 'clsx';
 
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { getUserSettings } from '../lib/firestore';
+import { useCache } from '../context/CacheContext';
 
 interface SidebarProps {
     isOpen: boolean;
@@ -19,25 +20,16 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
-    const { logout, user } = useAuth();
+    const { logout, userProfile } = useAuth();
     const navigate = useNavigate();
+    const { settings } = useCache();
     const [companyName, setCompanyName] = useState('Invoice System');
 
     useEffect(() => {
-        const fetchSettings = async () => {
-            if (user) {
-                try {
-                    const settings = await getUserSettings(user.uid);
-                    if (settings.companyName) {
-                        setCompanyName(settings.companyName);
-                    }
-                } catch (error) {
-                    console.error("Error fetching settings:", error);
-                }
-            }
-        };
-        fetchSettings();
-    }, [user]);
+        if (settings?.companyName) {
+            setCompanyName(settings.companyName);
+        }
+    }, [settings]);
 
     const handleLogout = async () => {
         try {
@@ -51,6 +43,7 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
     const navItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
         { icon: FileText, label: 'Invoices', path: '/invoices' },
+        { icon: Receipt, label: 'Expenses', path: '/expenses' },
         { icon: Users, label: 'Clients', path: '/clients' },
         { icon: Settings, label: 'Settings', path: '/settings' },
     ];
@@ -101,6 +94,36 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                         </NavLink>
                     ))}
                 </nav>
+
+                {userProfile && !userProfile.isPro && (
+                    <div className="px-6 py-4">
+                        <div className="bg-surface-light/30 rounded-xl p-4 border border-white/10">
+                            <div className="flex justify-between text-sm mb-2">
+                                <span className="text-text-muted">Free Invoices</span>
+                                <span className={clsx(
+                                    "font-bold",
+                                    userProfile.invoiceCount >= 5 ? "text-red-400" : "text-white"
+                                )}>
+                                    {userProfile.invoiceCount}/5
+                                </span>
+                            </div>
+                            <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+                                <div
+                                    className={clsx(
+                                        "h-full rounded-full transition-all duration-500",
+                                        userProfile.invoiceCount >= 5 ? "bg-red-500" : "bg-primary"
+                                    )}
+                                    style={{ width: `${Math.min((userProfile.invoiceCount / 5) * 100, 100)}%` }}
+                                />
+                            </div>
+                            {userProfile.invoiceCount >= 3 && (
+                                <p className="text-xs text-text-muted mt-2 text-center">
+                                    {5 - userProfile.invoiceCount} invoices left
+                                </p>
+                            )}
+                        </div>
+                    </div>
+                )}
 
                 <div className="p-4 border-t border-white/5">
                     <button

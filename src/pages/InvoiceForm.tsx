@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext';
 import { addInvoice, updateInvoice, type Invoice, type Client, type ServiceTypeConfig } from '../lib/firestore';
 import { InvoicePDF } from '../components/InvoicePDF';
 import { UpgradeModal } from '../components/UpgradeModal';
+import { clsx } from 'clsx';
 
 import { useCache } from '../context/CacheContext';
 
@@ -19,6 +20,7 @@ const InvoiceForm = () => {
     const navigate = useNavigate();
     const { id } = useParams();
     const { user, userProfile } = useAuth();
+    const isPro = userProfile?.isPro;
     const { invoices, clients: cachedClients, settings: cachedSettings, loading: cacheLoading } = useCache();
 
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -370,8 +372,17 @@ const InvoiceForm = () => {
                                     type="text"
                                     value={invoiceNumber}
                                     onChange={(e) => setInvoiceNumber(e.target.value)}
-                                    className="bg-surface-light/50 border border-white/10 rounded-xl px-4 py-2 text-white text-right focus:outline-none focus:border-primary/50 transition-colors w-full"
+                                    disabled={!!id && !isPro}
+                                    className={clsx(
+                                        "bg-surface-light/50 border border-white/10 rounded-xl px-4 py-2 text-white text-right focus:outline-none focus:border-primary/50 transition-colors w-full",
+                                        !!id && !isPro && "opacity-50 cursor-not-allowed"
+                                    )}
                                 />
+                                {!!id && !isPro && (
+                                    <p className="text-xs text-text-muted mt-1 cursor-pointer hover:text-primary" onClick={() => setShowUpgradeModal(true)}>
+                                        Upgrade to edit
+                                    </p>
+                                )}
                             </div>
                         </div>
                     </div>
@@ -416,8 +427,17 @@ const InvoiceForm = () => {
                                 onChange={(e) => setClientName(e.target.value)}
                                 placeholder="Enter client name"
                                 list="clients-list"
-                                className="w-full bg-surface-light/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
+                                disabled={!!id && !isPro}
+                                className={clsx(
+                                    "w-full bg-surface-light/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors",
+                                    !!id && !isPro && "opacity-50 cursor-not-allowed"
+                                )}
                             />
+                            {!!id && !isPro && (
+                                <p className="text-xs text-text-muted mt-1 cursor-pointer hover:text-primary" onClick={() => setShowUpgradeModal(true)}>
+                                    Upgrade to edit
+                                </p>
+                            )}
                             <datalist id="clients-list">
                                 {clients.map(client => (
                                     <option key={client.id} value={client.name} />

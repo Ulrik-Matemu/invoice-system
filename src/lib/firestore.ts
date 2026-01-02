@@ -11,7 +11,8 @@ import {
     deleteDoc,
     updateDoc,
     setDoc,
-    increment
+    increment,
+    serverTimestamp
 } from 'firebase/firestore';
 import { db } from './db';
 
@@ -66,6 +67,16 @@ export interface UserProfile {
     email: string;
     isPro: boolean;
     invoiceCount: number;
+}
+
+export interface Expense {
+    id: string;
+    userId: string;
+    description: string;
+    amount: number;
+    category: 'Rent' | 'Supplies' | 'Travel' | 'Software' | 'Other';
+    date: string;
+    createdAt: any;
 }
 
 export const getUserProfile = async (uid: string) => {
@@ -345,6 +356,39 @@ export const updateUserSettings = async (userId: string, settings: Partial<UserS
         await setDoc(docRef, { ...settings, userId }, { merge: true });
     } catch (error) {
         console.error("Error updating settings:", error);
+        throw error;
+    }
+};
+
+// Expenses
+export const addExpense = async (expenseData: Omit<Expense, 'id' | 'createdAt'>) => {
+    try {
+        await addDoc(collection(db, 'expenses'), {
+            ...expenseData,
+            createdAt: serverTimestamp()
+        });
+    } catch (error) {
+        console.error("Error adding expense:", error);
+        throw error;
+    }
+};
+
+export const getExpenses = async (userId: string) => {
+    try {
+        const q = query(collection(db, 'expenses'), where("userId", "==", userId), orderBy("date", "desc"));
+        const querySnapshot = await getDocs(q);
+        return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Expense));
+    } catch (error) {
+        console.error("Error getting expenses:", error);
+        throw error;
+    }
+};
+
+export const deleteExpense = async (expenseId: string) => {
+    try {
+        await deleteDoc(doc(db, 'expenses', expenseId));
+    } catch (error) {
+        console.error("Error deleting expense:", error);
         throw error;
     }
 };

@@ -9,12 +9,13 @@ import {
 } from 'firebase/firestore';
 import { db } from '../lib/db';
 import { useAuth } from './AuthContext';
-import type { Invoice, Client, UserSettings } from '../lib/firestore';
+import type { Invoice, Client, UserSettings, Expense } from '../lib/firestore';
 
 interface CacheContextType {
     invoices: Invoice[];
     clients: Client[];
     settings: UserSettings | null;
+    expenses: Expense[];
     loading: boolean;
     refreshData: () => void; // Optional, as onSnapshot handles updates
 }
@@ -38,18 +39,26 @@ export const CacheProvider: React.FC<CacheProviderProps> = ({ children }) => {
     const [invoices, setInvoices] = useState<Invoice[]>([]);
     const [clients, setClients] = useState<Client[]>([]);
     const [settings, setSettings] = useState<UserSettings | null>(null);
+    const [expenses, setExpenses] = useState<Expense[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Track loading state for each subscription
     const [invoicesLoaded, setInvoicesLoaded] = useState(false);
     const [clientsLoaded, setClientsLoaded] = useState(false);
     const [settingsLoaded, setSettingsLoaded] = useState(false);
+    const [expensesLoaded, setExpensesLoaded] = useState(false);
 
     useEffect(() => {
         if (!user) {
             setInvoices([]);
             setClients([]);
             setSettings(null);
+            setExpenses([]);
             setLoading(false);
+            setInvoicesLoaded(false);
+            setClientsLoaded(false);
+            setSettingsLoaded(false);
+            setExpensesLoaded(false);
             return;
         }
 
@@ -57,6 +66,7 @@ export const CacheProvider: React.FC<CacheProviderProps> = ({ children }) => {
         setInvoicesLoaded(false);
         setClientsLoaded(false);
         setSettingsLoaded(false);
+        setExpensesLoaded(false);
 
         // Invoices Subscription
         const qInvoices = query(
@@ -111,25 +121,44 @@ export const CacheProvider: React.FC<CacheProviderProps> = ({ children }) => {
             setSettingsLoaded(true);
         });
 
+        // Expenses Subscription
+        const qExpenses = query(
+            collection(db, 'expenses'),
+            where("userId", "==", user.uid),
+            orderBy("createdAt", "desc")
+        );
+
+        const unsubscribeExpenses = onSnapshot(qExpenses, (snapshot) => {
+            const newExpenses = snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            })) as Expense[];
+            setExpenses(newExpenses);
+            setExpensesLoaded(true);
+        }, (error) => {
+            console.error("Error listening to expenses:", error);
+            setExpensesLoaded(true); // Proceed even on error
+        });
+
         return () => {
             unsubscribeInvoices();
             unsubscribeClients();
             unsubscribeSettings();
+            unsubscribeExpenses();
         };
     }, [user]);
 
     useEffect(() => {
-        if (user) {
-            if (invoicesLoaded && clientsLoaded && settingsLoaded) {
-                setLoading(false);
-            }
+        if (user && invoicesLoaded && clientsLoaded && settingsLoaded && expensesLoaded) {
+            setLoading(false);
         }
-    }, [invoicesLoaded, clientsLoaded, settingsLoaded, user]);
+    }, [invoicesLoaded, clientsLoaded, settingsLoaded, expensesLoaded, user]);
 
     const value = {
         invoices,
         clients,
         settings,
+        expenses,
         loading,
         refreshData: () => { } // No-op for now as onSnapshot handles it
     };
