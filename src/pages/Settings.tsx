@@ -457,7 +457,7 @@ const Settings = () => {
                                 type="text"
                                 value={companyName}
                                 onChange={(e) => setCompanyName(e.target.value)}
-                                placeholder="e.g. Ndito Travel"
+                                placeholder="e.g. New Travels"
                                 className="w-full bg-surface-light/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
                             />
                         </div>
