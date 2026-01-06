@@ -420,7 +420,6 @@ const InvoiceForm = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-white/5">
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-text-muted">Client Name</label>
-                            <label className="text-sm font-medium text-text-muted">Client Name</label>
                             <input
                                 type="text"
                                 value={clientName}
