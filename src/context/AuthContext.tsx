@@ -12,7 +12,8 @@ import { createUserProfile, getUserProfile, type UserProfile } from '../lib/fire
 interface AuthContextType {
     user: User | null;
     userProfile: UserProfile | null;
-    loading: boolean;
+    loading: boolean; // True while Firebase Auth is initializing
+    profileLoading: boolean; // True while profile is being fetched
     signIn: (email: string, password: string) => Promise<void>;
     signUp: (email: string, password: string) => Promise<void>;
     logout: () => Promise<void>;
@@ -33,20 +34,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
+    const [profileLoading, setProfileLoading] = useState(false);
 
     const refreshProfile = async () => {
         if (user) {
-            const profile = await getUserProfile(user.uid);
-            setUserProfile(profile);
+            setProfileLoading(true);
+            try {
+                const profile = await getUserProfile(user.uid);
+                setUserProfile(profile);
+            } finally {
+                setProfileLoading(false);
+            }
         }
     };
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setUser(currentUser);
+            setLoading(false); // Auth state is now known - render the app immediately
+
             if (currentUser) {
+                setProfileLoading(true);
                 try {
-                    // Create or get user profile
+                    // Create or get user profile (happens in background after render)
                     const profile = await createUserProfile({
                         uid: currentUser.uid,
                         email: currentUser.email
@@ -54,11 +64,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                     setUserProfile(profile);
                 } catch (error) {
                     console.error("Error fetching user profile:", error);
+                } finally {
+                    setProfileLoading(false);
                 }
             } else {
                 setUserProfile(null);
             }
-            setLoading(false);
         });
 
         return () => unsubscribe();
@@ -81,6 +92,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         user,
         userProfile,
         loading,
+        profileLoading,
         signIn,
         signUp,
         logout,

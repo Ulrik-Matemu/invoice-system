@@ -4,6 +4,7 @@
   --font-sans: "Inter", sans-serif;
   --font-display: "Outfit", sans-serif;
 
+  /* Dark theme colors - keeping current scheme */
   --color-background: #0f172a;
   --color-surface: #1e293b;
   --color-surface-light: #334155;
@@ -14,6 +15,16 @@
   --color-text-main: #f8fafc;
   --color-text-muted: #94a3b8;
   --color-border: #334155;
+  
+  /* Card variations */
+  --color-card-green: #22c55e;
+  --color-card-green-light: #86efac;
+  --color-card-amber: #f59e0b;
+  --color-card-purple: #a855f7;
+  
+  /* Shadows */
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.15);
+  --shadow-card-hover: 0 8px 32px rgba(0, 0, 0, 0.25);
 }
 
 @layer base {
@@ -33,11 +44,11 @@
 
 @layer utilities {
   .glass-panel {
-    @apply bg-surface/70 backdrop-blur-xl border border-white/10 shadow-xl;
+    @apply bg-surface/80 backdrop-blur-xl border border-white/10 shadow-[var(--shadow-card)];
   }
 
   .glass-sidebar {
-    @apply bg-surface/80 backdrop-blur-2xl border-r border-white/5;
+    @apply bg-surface/90 backdrop-blur-2xl border-r border-white/5;
   }
 
   .nav-item {
@@ -47,4 +58,142 @@
   .nav-item.active {
     @apply bg-primary/10 text-primary font-medium;
   }
+  
+  /* Modern stat cards */
+  .stat-card {
+    @apply relative overflow-hidden rounded-3xl p-6 transition-all duration-300;
+    box-shadow: var(--shadow-card);
+  }
+  
+  .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-hover);
+  }
+  
+  .stat-card-primary {
+    @apply bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20;
+  }
+  
+  .stat-card-accent {
+    @apply bg-gradient-to-br from-accent/20 to-accent/5 border border-accent/20;
+  }
+  
+  .stat-card-secondary {
+    @apply bg-gradient-to-br from-secondary/20 to-secondary/5 border border-secondary/20;
+  }
+  
+  .stat-card-surface {
+    @apply bg-surface border border-white/10;
+  }
+  
+  /* Circular progress */
+  .circular-progress {
+    @apply relative w-20 h-20;
+  }
+  
+  .circular-progress svg {
+    @apply w-full h-full;
+    transform: rotate(-90deg);
+  }
+  
+  .circular-progress-track {
+    stroke: rgba(255, 255, 255, 0.1);
+    fill: none;
+    stroke-width: 4;
+  }
+  
+  .circular-progress-bar {
+    fill: none;
+    stroke-width: 4;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.6s ease-out;
+  }
+  
+  /* Mini chart bars */
+  .mini-chart {
+    @apply flex items-end gap-0.5 h-10;
+  }
+  
+  .mini-chart-bar {
+    @apply w-1 rounded-full transition-all duration-300;
+    min-height: 4px;
+  }
+  
+  /* Input styling */
+  .input-modern {
+    @apply w-full bg-surface-light/50 border border-white/10 rounded-2xl px-4 py-3.5 text-white placeholder:text-text-muted focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all duration-200;
+  }
+  
+  /* Button styling */
+  .btn-primary {
+    @apply bg-primary hover:bg-primary-dark text-white px-6 py-3.5 rounded-2xl font-medium shadow-lg shadow-primary/20 transition-all duration-200 hover:shadow-primary/30 hover:-translate-y-0.5 active:translate-y-0;
+  }
+  
+  .btn-dark {
+    @apply bg-slate-900 hover:bg-black text-white px-6 py-3.5 rounded-2xl font-medium transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0;
+  }
+  
+  .btn-ghost {
+    @apply bg-white/5 hover:bg-white/10 text-white px-6 py-3.5 rounded-2xl font-medium transition-all duration-200 border border-white/10;
+  }
+  
+  .btn-outline {
+    @apply bg-transparent border-2 border-white/20 hover:border-white/40 text-white px-6 py-3.5 rounded-2xl font-medium transition-all duration-200;
+  }
+  
+  /* Client card styling (like the green card in image) */
+  .client-card {
+    @apply relative bg-gradient-to-br from-primary/20 to-primary/10 rounded-2xl p-5 border border-primary/20 transition-all duration-300 hover:border-primary/40;
+  }
+  
+  /* Item row styling */
+  .item-row {
+    @apply flex items-center justify-between p-4 rounded-2xl bg-surface border border-white/5 transition-all duration-200 hover:bg-surface-light/30;
+  }
+  
+  /* Status badges */
+  .status-badge {
+    @apply px-4 py-1.5 rounded-full text-xs font-semibold border;
+  }
+  
+  .status-paid {
+    @apply bg-emerald-500/15 text-emerald-400 border-emerald-500/30;
+  }
+  
+  .status-pending {
+    @apply bg-amber-500/15 text-amber-400 border-amber-500/30;
+  }
+  
+  .status-overdue {
+    @apply bg-red-500/15 text-red-400 border-red-500/30;
+  }
+  
+  /* Animation utilities */
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .animate-fade-in-up {
+    animation: fade-in-up 0.4s ease-out forwards;
+  }
+  
+  /* Stagger children animation */
+  .stagger-children > * {
+    opacity: 0;
+    animation: fade-in-up 0.4s ease-out forwards;
+  }
+  
+  .stagger-children > *:nth-child(1) { animation-delay: 0ms; }
+  .stagger-children > *:nth-child(2) { animation-delay: 50ms; }
+  .stagger-children > *:nth-child(3) { animation-delay: 100ms; }
+  .stagger-children > *:nth-child(4) { animation-delay: 150ms; }
+  .stagger-children > *:nth-child(5) { animation-delay: 200ms; }
+  .stagger-children > *:nth-child(6) { animation-delay: 250ms; }
 }

@@ -3,7 +3,7 @@ import { createBrowserRouter, RouterProvider, Route, createRoutesFromElements } 
 import { AuthProvider } from './context/AuthContext';
 import { CacheProvider } from './context/CacheContext';
 import ProtectedRoute from './components/ProtectedRoute';
-const Layout = React.lazy(() => import('./components/Layout'));
+import Layout from './components/Layout';
 
 // Lazy load pages
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));

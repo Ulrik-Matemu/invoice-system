@@ -1,11 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import ArrowLeft from 'lucide-react/dist/esm/icons/arrow-left';
 import Save from 'lucide-react/dist/esm/icons/save';
-import Plus from 'lucide-react/dist/esm/icons/plus';
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
-import Calendar from 'lucide-react/dist/esm/icons/calendar';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
-import Printer from 'lucide-react/dist/esm/icons/printer';
+import Download from 'lucide-react/dist/esm/icons/download';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import { useAuth } from '../context/AuthContext';
@@ -13,8 +12,21 @@ import { addInvoice, updateInvoice, type Invoice, type Client, type ServiceTypeC
 import { InvoicePDF } from '../components/InvoicePDF';
 import { UpgradeModal } from '../components/UpgradeModal';
 import { clsx } from 'clsx';
-
 import { useCache } from '../context/CacheContext';
+
+// Animation variants
+const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+        opacity: 1,
+        transition: { staggerChildren: 0.05, delayChildren: 0.1 }
+    }
+};
+
+const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: { opacity: 1, y: 0, transition: { type: 'spring' as const, stiffness: 300, damping: 24 } }
+};
 
 const InvoiceForm = () => {
     const navigate = useNavigate();
@@ -25,7 +37,6 @@ const InvoiceForm = () => {
 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-    // const [isLoading, setIsLoading] = useState(!!id); // Use cacheLoading
     const [clients, setClients] = useState<Client[]>([]);
 
     const [clientName, setClientName] = useState('');
@@ -33,7 +44,7 @@ const InvoiceForm = () => {
     const [clientType, setClientType] = useState<'Direct' | 'Agent'>('Direct');
     const [dueDate, setDueDate] = useState('');
     const [status, setStatus] = useState<'Pending' | 'Paid' | 'Overdue'>('Pending');
-    const [taxRate, setTaxRate] = useState(0.1); // Default 10%
+    const [taxRate, setTaxRate] = useState(0.1);
     const [companyDetails, setCompanyDetails] = useState({
         name: '',
         address: '',
@@ -72,16 +83,8 @@ const InvoiceForm = () => {
 
     useEffect(() => {
         if (cacheLoading || !user) return;
-
-        // Prevent re-populating if already loaded for this ID (unless ID changes)
-        // We use a ref to track if we've initialized the form
         if (dataLoadedRef.current && id === dataLoadedRef.current) return;
 
-        // If id changed, reset loaded flag (though component might remount)
-        // Actually, if component stays mounted and id changes, we need to handle it.
-        // But usually router remounts or we can track previous ID.
-
-        // Initialize from Settings
         if (cachedSettings) {
             setTaxRate(cachedSettings.taxRate);
             setCompanyDetails({
@@ -97,7 +100,6 @@ const InvoiceForm = () => {
             setTemplateId(cachedSettings.defaultTemplate || 'standard');
 
             if (cachedSettings.serviceTypes && cachedSettings.serviceTypes.length > 0) {
-                // Handle migration from string[] to ServiceTypeConfig[]
                 const loadedServices = cachedSettings.serviceTypes;
                 const normalizedServices: ServiceTypeConfig[] = loadedServices.map((s: any) => {
                     if (typeof s === 'string') {
@@ -114,8 +116,6 @@ const InvoiceForm = () => {
                 });
                 setServiceTypes(normalizedServices);
 
-                // Update initial item if it exists and hasn't been modified
-                // Only for NEW invoices
                 if (!id && items.length === 1 && (items[0].serviceType === 'Hotel' || items[0].serviceType === 'Service') && !items[0].description) {
                     const firstService = normalizedServices[0];
                     if (firstService) {
@@ -135,10 +135,8 @@ const InvoiceForm = () => {
             setEnableAgentDetails(cachedSettings.enableAgentDetails !== undefined ? cachedSettings.enableAgentDetails : true);
         }
 
-        // Initialize Clients
         setClients(cachedClients);
 
-        // Initialize Invoice if editing
         if (id) {
             const invoiceData = invoices.find(i => i.id === id);
             if (invoiceData) {
@@ -163,13 +161,8 @@ const InvoiceForm = () => {
                     description: item.description || ''
                 })));
                 setCreatedAt(invoiceData.createdAt);
-
-                // Mark as loaded for this ID
-                // We store the ID to know WHICH invoice we loaded
                 (dataLoadedRef as any).current = id;
             } else {
-                // Invoice not found in cache? 
-                // It might not exist.
                 console.warn("Invoice not found in cache");
             }
         } else {
@@ -216,7 +209,6 @@ const InvoiceForm = () => {
         e.preventDefault();
         if (!user) return;
 
-        // Check limits for new invoices
         if (!id && userProfile && !userProfile.isPro && userProfile.invoiceCount >= 5) {
             setShowUpgradeModal(true);
             return;
@@ -233,14 +225,13 @@ const InvoiceForm = () => {
                 dueDate,
                 items: items.map(item => ({
                     ...item,
-                    id: item.id.toString(), // Convert ID to string for Firestore
+                    id: item.id.toString(),
                     serviceType: item.serviceType as any
                 })),
                 totalAmount: calculateTotal(),
                 status: status,
                 taxRate: taxRate,
                 templateId: templateId,
-                // Include company details snapshot
                 companyName: companyDetails.name,
                 companyAddress: companyDetails.address,
                 companyEmail: companyDetails.email,
@@ -277,7 +268,6 @@ const InvoiceForm = () => {
         );
     }
 
-    // Construct invoice object for PDF
     const currentInvoice: Invoice = {
         id: id || '',
         userId: user?.uid || '',
@@ -306,330 +296,408 @@ const InvoiceForm = () => {
         templateId: templateId
     };
 
+    // Find selected client for display
+    const selectedClient = clients.find(c => c.name === clientName);
+
     return (
-        <div className="max-w-5xl mx-auto">
+        <motion.div
+            className="max-w-4xl mx-auto pb-24"
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+        >
             {/* Hidden PDF Component */}
             <div className="hidden print:block">
                 <InvoicePDF ref={componentRef} invoice={currentInvoice} />
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6 print:hidden">
-                <div className="flex items-center justify-between mb-8">
+                {/* Header */}
+                <motion.div variants={itemVariants} className="flex items-center justify-between py-4">
                     <button
                         type="button"
                         onClick={() => navigate('/invoices')}
-                        className="flex items-center gap-2 text-text-muted hover:text-white transition-colors"
+                        className="flex items-center gap-2 text-text-muted hover:text-white transition-colors p-2 -ml-2 rounded-xl hover:bg-white/5"
                     >
                         <ArrowLeft className="w-5 h-5" />
-                        Back to Invoices
+                        <span className="hidden md:inline">Back</span>
                     </button>
-                    <div className="flex gap-3">
-                        {id && (
-                            <button
-                                type="button"
-                                onClick={() => handlePrint && handlePrint()}
-                                className="bg-white/10 hover:bg-white/20 text-white px-4 py-3 md:px-6 rounded-xl flex items-center gap-2 transition-colors font-medium"
-                            >
-                                <Printer className="w-5 h-5" />
-                                <span className="hidden md:inline">Print / PDF</span>
-                            </button>
-                        )}
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="bg-primary hover:bg-primary-dark text-white px-6 py-3 rounded-xl flex items-center gap-2 transition-colors font-medium shadow-lg shadow-primary/20 disabled:opacity-50"
-                        >
-                            {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                            {id ? 'Update' : 'Save'}
-                        </button>
-                    </div>
-                </div>
+                    <h1 className="text-xl font-bold text-white">
+                        {id ? 'Edit Invoice' : 'Create new invoice'}
+                    </h1>
+                    <div className="w-10" /> {/* Spacer for centering */}
+                </motion.div>
 
-                <div className="glass-panel rounded-2xl p-4 md:p-8 space-y-8">
-                    <div className="flex justify-between items-start border-b border-white/5 pb-8">
-                        <div>
-                            <h1 className="text-2xl font-bold text-white mb-2">{id ? 'Edit Invoice' : 'New Invoice'}</h1>
-                            <p className="text-text-muted">Create a new invoice for your client</p>
-                        </div>
-                        <div className="flex gap-4">
-                            {id && (
-                                <div className="text-right">
-                                    <label className="block text-sm text-text-muted mb-1">Status</label>
-                                    <select
-                                        value={status}
-                                        onChange={(e) => setStatus(e.target.value as any)}
-                                        className="bg-surface-light/50 border border-white/10 rounded-xl px-4 py-2 text-white text-right focus:outline-none focus:border-primary/50 transition-colors w-full"
-                                    >
-                                        <option value="Pending">Pending</option>
-                                        <option value="Paid">Paid</option>
-                                        <option value="Overdue">Overdue</option>
-                                    </select>
-                                </div>
-                            )}
-                            <div className="text-right">
-                                <label className="block text-sm text-text-muted mb-1">Invoice Number</label>
+                {/* Send To Section */}
+                <motion.section variants={itemVariants}>
+                    <h2 className="text-lg font-semibold text-white mb-3">Send to</h2>
+
+                    {/* Client Card - Like green card in image */}
+                    <motion.div
+                        className="client-card cursor-pointer"
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.99 }}
+                        layout
+                    >
+                        <div className="flex items-start justify-between">
+                            <div className="flex-1 space-y-3">
                                 <input
                                     type="text"
-                                    value={invoiceNumber}
-                                    onChange={(e) => setInvoiceNumber(e.target.value)}
+                                    value={clientName}
+                                    onChange={(e) => setClientName(e.target.value)}
+                                    placeholder="Client name"
+                                    list="clients-list"
                                     disabled={!!id && !isPro}
                                     className={clsx(
-                                        "bg-surface-light/50 border border-white/10 rounded-xl px-4 py-2 text-white text-right focus:outline-none focus:border-primary/50 transition-colors w-full",
+                                        "w-full bg-transparent text-lg font-semibold text-white placeholder:text-white/50 focus:outline-none",
                                         !!id && !isPro && "opacity-50 cursor-not-allowed"
                                     )}
                                 />
-                                {!!id && !isPro && (
-                                    <p className="text-xs text-text-muted mt-1 cursor-pointer hover:text-primary" onClick={() => setShowUpgradeModal(true)}>
-                                        Upgrade to edit
-                                    </p>
+                                <datalist id="clients-list">
+                                    {clients.map(client => (
+                                        <option key={client.id} value={client.name} />
+                                    ))}
+                                </datalist>
+                                {selectedClient && (
+                                    <motion.div
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        className="text-sm text-white/70"
+                                    >
+                                        <div>{selectedClient.address}</div>
+                                        <div>{selectedClient.email}</div>
+                                    </motion.div>
+                                )}
+                                {!selectedClient && clientName && (
+                                    <div className="text-sm text-white/50">
+                                        New client
+                                    </div>
                                 )}
                             </div>
-                        </div>
-                    </div>
 
-                    {/* Template Selection */}
-                    <div className="flex gap-4 border-t border-white/5 pt-4">
-                        <div className="flex-1">
-                            <label className="block text-sm text-text-muted mb-2">Invoice Template</label>
-                            <div className="flex gap-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setTemplateId('standard')}
-                                    className={`flex-1 py-2 px-4 rounded-xl border transition-colors text-sm ${templateId === 'standard'
-                                        ? 'bg-primary/20 border-primary text-primary'
-                                        : 'border-white/10 text-text-muted hover:bg-white/5'
-                                        }`}
-                                >
-                                    Standard
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setTemplateId('premium')}
-                                    className={`flex-1 py-2 px-4 rounded-xl border transition-colors text-sm ${templateId === 'premium'
-                                        ? 'bg-primary/20 border-primary text-primary'
-                                        : 'border-white/10 text-text-muted hover:bg-white/5'
-                                        }`}
-                                >
-                                    Premium
-                                </button>
-                            </div>
                         </div>
-                    </div>
+                    </motion.div>
+                    {!!id && !isPro && (
+                        <p className="text-xs text-text-muted mt-2 cursor-pointer hover:text-primary" onClick={() => setShowUpgradeModal(true)}>
+                            Upgrade to edit client
+                        </p>
+                    )}
+                </motion.section>
 
-                    {/* Client Details */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-white/5">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-text-muted">Client Name</label>
-                            <input
-                                type="text"
-                                value={clientName}
-                                onChange={(e) => setClientName(e.target.value)}
-                                placeholder="Enter client name"
-                                list="clients-list"
-                                disabled={!!id && !isPro}
+                {/* Agent Details (if enabled) */}
+                {enableAgentDetails && (
+                    <motion.section variants={itemVariants} className="space-y-4">
+                        <div className="flex gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setClientType('Direct')}
                                 className={clsx(
-                                    "w-full bg-surface-light/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors",
-                                    !!id && !isPro && "opacity-50 cursor-not-allowed"
+                                    "flex-1 py-3 rounded-2xl border text-sm font-medium transition-all",
+                                    clientType === 'Direct'
+                                        ? 'bg-primary/20 border-primary text-primary'
+                                        : 'border-white/10 text-text-muted hover:bg-white/5'
                                 )}
-                            />
-                            {!!id && !isPro && (
-                                <p className="text-xs text-text-muted mt-1 cursor-pointer hover:text-primary" onClick={() => setShowUpgradeModal(true)}>
-                                    Upgrade to edit
-                                </p>
-                            )}
-                            <datalist id="clients-list">
-                                {clients.map(client => (
-                                    <option key={client.id} value={client.name} />
-                                ))}
-                            </datalist>
+                            >
+                                Direct Client
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setClientType('Agent')}
+                                className={clsx(
+                                    "flex-1 py-3 rounded-2xl border text-sm font-medium transition-all",
+                                    clientType === 'Agent'
+                                        ? 'bg-secondary/20 border-secondary text-secondary'
+                                        : 'border-white/10 text-text-muted hover:bg-white/5'
+                                )}
+                            >
+                                Travel Agent
+                            </button>
                         </div>
-                    </div>
-
-                    {enableAgentDetails && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t border-white/5">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-text-muted">Client Type</label>
-                                <div className="flex gap-4">
-                                    <button
-                                        type="button"
-                                        onClick={() => setClientType('Direct')}
-                                        className={`flex-1 py-3 rounded-xl border transition-colors ${clientType === 'Direct'
-                                            ? 'bg-primary/20 border-primary text-primary'
-                                            : 'border-white/10 text-text-muted hover:bg-white/5'
-                                            }`}
-                                    >
-                                        Direct Client
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setClientType('Agent')}
-                                        className={`flex-1 py-3 rounded-xl border transition-colors ${clientType === 'Agent'
-                                            ? 'bg-purple-500/20 border-purple-500 text-purple-400'
-                                            : 'border-white/10 text-text-muted hover:bg-white/5'
-                                            }`}
-                                    >
-                                        Travel Agent
-                                    </button>
-                                </div>
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium text-text-muted">Agent Name (Optional)</label>
+                        {clientType === 'Agent' && (
+                            <motion.div
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                exit={{ opacity: 0, height: 0 }}
+                            >
                                 <input
                                     type="text"
                                     value={agentName}
                                     onChange={(e) => setAgentName(e.target.value)}
-                                    placeholder="Enter agent name"
-                                    className="w-full bg-surface-light/50 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
+                                    placeholder="Agent name"
+                                    className="input-modern"
                                 />
-                            </div>
-                        </div>
-                    )}
+                            </motion.div>
+                        )}
+                    </motion.section>
+                )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-text-muted">Due Date</label>
-                            <div className="relative">
-                                <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
-                                <input
-                                    type="date"
-                                    value={dueDate}
-                                    onChange={(e) => setDueDate(e.target.value)}
-                                    className="w-full bg-surface-light/50 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-white focus:outline-none focus:border-primary/50 transition-colors"
-                                />
-                            </div>
-                        </div>
+                {/* Invoice Details Header */}
+                <motion.section variants={itemVariants} className="w-full max-w-full overflow-hidden">
+                    <div className="flex items-center justify-between mb-6 px-1">
+                        <h2 className="text-lg font-semibold text-white">Invoice details</h2>
+                        <button
+                            type="button"
+                            onClick={addItem}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors"
+                        >
+                            <span className="text-lg">+</span> Add item
+                        </button>
                     </div>
 
-                    {/* Line Items */}
+                    {/* Item List */}
                     <div className="space-y-4">
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-lg font-bold text-white">Services & Items</h3>
-                            <button
-                                type="button"
-                                onClick={addItem}
-                                className="text-primary hover:text-primary-light text-sm font-medium flex items-center gap-1"
-                            >
-                                <Plus className="w-4 h-4" />
-                                Add Item
-                            </button>
-                        </div>
+                        <AnimatePresence mode="popLayout">
+                            {items.map((item, index) => (
+                                <motion.div
+                                    key={item.id}
+                                    layout
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    className="relative p-4 rounded-2xl bg-white/[0.03] border border-white/10 flex flex-col sm:flex-row gap-4 sm:items-start group transition-all hover:border-white/20"
+                                >
+                                    {/* Index Badge - Top Left on Mobile */}
+                                    <div className="absolute -top-2 -left-2 w-6 h-6 rounded-full bg-primary flex items-center justify-center sm:static sm:w-10 sm:h-10 sm:rounded-xl sm:bg-primary/10 flex-shrink-0">
+                                        <span className="text-xs sm:text-sm font-bold text-white sm:text-primary">{index + 1}</span>
+                                    </div>
 
-                        <div className="space-y-4">
-                            {items.map((item) => (
-                                <div key={item.id} className="p-4 rounded-xl bg-white/5 border border-white/5 space-y-4">
-                                    <div className="flex justify-between items-start gap-4">
-                                        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="flex-1 min-w-0 space-y-4">
+                                        {/* Main Info Grid */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                             <div className="space-y-1">
-                                                <label className="text-xs text-text-muted">Service Type</label>
+                                                <label className="text-[10px] uppercase tracking-wider text-text-muted font-bold ml-1">Service Type</label>
                                                 <select
                                                     value={item.serviceType}
                                                     onChange={(e) => updateItem(item.id, 'serviceType', e.target.value)}
-                                                    className="w-full bg-surface-light/50 border border-white/10 rounded-lg px-3 py-3 text-white text-sm focus:outline-none focus:border-primary/50"
+                                                    className="w-full bg-white/5 text-white border border-transparent focus:border-primary/50 focus:ring-0 rounded-lg px-3 py-2 text-sm cursor-pointer transition-all"
                                                 >
                                                     {serviceTypes.map(type => (
-                                                        <option key={type.name} value={type.name}>{type.name}</option>
+                                                        <option key={type.name} value={type.name} className="bg-neutral-900">
+                                                            {type.name}
+                                                        </option>
                                                     ))}
                                                 </select>
                                             </div>
+
                                             <div className="space-y-1">
-                                                <label className="text-xs text-text-muted">
-                                                    {serviceTypes.find(t => t.name === item.serviceType)?.descriptionLabel || 'Description'}
-                                                </label>
+                                                <label className="text-[10px] uppercase tracking-wider text-text-muted font-bold ml-1">Description</label>
                                                 <input
                                                     type="text"
                                                     value={item.description}
                                                     onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                                                    className="w-full bg-surface-light/50 border border-white/10 rounded-lg px-3 py-3 text-white text-sm focus:outline-none focus:border-primary/50"
+                                                    placeholder={serviceTypes.find(t => t.name === item.serviceType)?.descriptionLabel || 'Description'}
+                                                    className="w-full bg-white/5 text-white border border-transparent focus:border-primary/50 focus:ring-0 rounded-lg px-3 py-2 text-sm transition-all"
                                                 />
                                             </div>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => removeItem(item.id)}
-                                            className="p-2 text-text-muted hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors mt-6"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
 
-                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                        {/* Dates Row */}
                                         {serviceTypes.find(t => t.name === item.serviceType)?.requiresDates && (
-                                            <>
-                                                <div className="space-y-1">
-                                                    <label className="text-xs text-text-muted">
-                                                        {item.serviceType === 'Flight' ? 'Travel Date' : 'Start Date / Check In'}
-                                                    </label>
-                                                    <input
-                                                        type="date"
-                                                        value={item.startDate}
-                                                        onChange={(e) => updateItem(item.id, 'startDate', e.target.value)}
-                                                        className="w-full bg-surface-light/50 border border-white/10 rounded-lg px-3 py-3 text-white text-sm focus:outline-none focus:border-primary/50"
-                                                    />
+                                            <div className="flex flex-col xs:flex-row gap-2 items-end sm:items-center">
+                                                <div className="w-full">
+                                                    <label className="text-[10px] uppercase tracking-wider text-text-muted font-bold ml-1">Duration</label>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <input
+                                                            type="date"
+                                                            value={item.startDate}
+                                                            onChange={(e) => updateItem(item.id, 'startDate', e.target.value)}
+                                                            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-primary/50"
+                                                        />
+                                                        <span className="text-text-muted text-xs">to</span>
+                                                        <input
+                                                            type="date"
+                                                            value={item.endDate}
+                                                            onChange={(e) => updateItem(item.id, 'endDate', e.target.value)}
+                                                            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-primary/50"
+                                                        />
+                                                    </div>
                                                 </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-xs text-text-muted">
-                                                        {item.serviceType === 'Flight' ? 'Return Date (Optional)' : 'End Date / Check Out'}
-                                                    </label>
-                                                    <input
-                                                        type="date"
-                                                        value={item.endDate}
-                                                        onChange={(e) => updateItem(item.id, 'endDate', e.target.value)}
-                                                        className="w-full bg-surface-light/50 border border-white/10 rounded-lg px-3 py-3 text-white text-sm focus:outline-none focus:border-primary/50"
-                                                    />
-                                                </div>
-                                            </>
+                                            </div>
                                         )}
-                                        <div className="space-y-1">
-                                            <label className="text-xs text-text-muted">Quantity</label>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                value={item.quantity}
-                                                onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value))}
-                                                className="w-full bg-surface-light/50 border border-white/10 rounded-lg px-3 py-3 text-white text-sm focus:outline-none focus:border-primary/50"
-                                            />
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-xs text-text-muted">Price</label>
-                                            <input
-                                                type="number"
-                                                min="0"
-                                                value={item.price}
-                                                onChange={(e) => updateItem(item.id, 'price', parseFloat(e.target.value))}
-                                                className="w-full bg-surface-light/50 border border-white/10 rounded-lg px-3 py-3 text-white text-sm focus:outline-none focus:border-primary/50"
-                                            />
+
+                                        {/* Pricing & Quantity Footer */}
+                                        <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                                            <div className="flex gap-4">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] text-text-muted uppercase font-bold">Qty</span>
+                                                    <input
+                                                        type="number"
+                                                        min="1"
+                                                        value={item.quantity}
+                                                        onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 1)}
+                                                        className="w-12 bg-transparent text-white text-sm font-medium focus:outline-none border-b border-white/10 focus:border-primary transition-all"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[10px] text-text-muted uppercase font-bold">Price</span>
+                                                    <div className="flex items-center gap-1">
+                                                        <span className="text-primary text-sm">$</span>
+                                                        <input
+                                                            type="number"
+                                                            min="0"
+                                                            step="0.01"
+                                                            value={item.price}
+                                                            onChange={(e) => updateItem(item.id, 'price', parseFloat(e.target.value) || 0)}
+                                                            className="w-20 bg-transparent text-white text-sm font-medium focus:outline-none border-b border-white/10 focus:border-primary transition-all"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {items.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeItem(item.id)}
+                                                    className="p-2 text-text-muted hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all"
+                                                    aria-label="Remove item"
+                                                >
+                                                    <Trash2 className="w-5 h-5" />
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
-                                </div>
+                                </motion.div>
+                            ))}
+                        </AnimatePresence>
+                    </div>
+                </motion.section>
+                {/* Due Date & Invoice Number */}
+                <motion.section variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-text-muted">Due Date</label>
+                        <div className="relative">
+
+                            <input
+                                type="date"
+                                value={dueDate}
+                                onChange={(e) => setDueDate(e.target.value)}
+                                className="input-modern pl-12 mt-2"
+                            />
+                        </div>
+                    </div>
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-text-muted">Invoice Number</label>
+                        <input
+                            type="text"
+                            value={invoiceNumber}
+                            onChange={(e) => setInvoiceNumber(e.target.value)}
+                            disabled={!!id && !isPro}
+                            className={clsx(
+                                "input-modern mt-2",
+                                !!id && !isPro && "opacity-50 cursor-not-allowed"
+                            )}
+                        />
+                    </div>
+                </motion.section>
+
+                {/* Status (for editing) */}
+                {id && (
+                    <motion.section variants={itemVariants} className="space-y-2">
+                        <label className="text-sm font-medium text-text-muted">Status</label>
+                        <div className="flex gap-3">
+                            {(['Pending', 'Paid', 'Overdue'] as const).map((s) => (
+                                <button
+                                    key={s}
+                                    type="button"
+                                    onClick={() => setStatus(s)}
+                                    className={clsx(
+                                        "flex-1 py-3 rounded-2xl border text-sm font-medium transition-all",
+                                        status === s
+                                            ? s === 'Paid' ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
+                                                : s === 'Pending' ? 'bg-amber-500/20 border-amber-500 text-amber-400'
+                                                    : 'bg-red-500/20 border-red-500 text-red-400'
+                                            : 'border-white/10 text-text-muted hover:bg-white/5'
+                                    )}
+                                >
+                                    {s}
+                                </button>
                             ))}
                         </div>
-                    </div>
+                    </motion.section>
+                )}
 
-                    {/* Totals */}
-                    <div className="border-t border-white/5 pt-8 flex justify-end">
-                        <div className="w-full max-w-xs space-y-3">
-                            <div className="flex justify-between text-text-muted">
-                                <span>Subtotal</span>
-                                <span>${calculateSubtotal().toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between text-text-muted">
-                                <span>Tax ({(taxRate * 100).toFixed(1)}%)</span>
-                                <span>${calculateTax().toLocaleString()}</span>
-                            </div>
-                            <div className="flex justify-between text-xl font-bold text-white pt-4 border-t border-white/10">
-                                <span>Total</span>
-                                <span>${calculateTotal().toLocaleString()}</span>
-                            </div>
-                        </div>
+                {/* Template Selection */}
+                <motion.section variants={itemVariants} className="space-y-2">
+                    <label className="text-sm font-medium text-text-muted">Template</label>
+                    <div className="flex gap-3 mt-2">
+                        <button
+                            type="button"
+                            onClick={() => setTemplateId('standard')}
+                            className={clsx(
+                                "flex-1 py-3 rounded-2xl border text-sm font-medium transition-all",
+                                templateId === 'standard'
+                                    ? 'bg-primary/20 border-primary text-primary'
+                                    : 'border-white/10 text-text-muted hover:bg-white/5'
+                            )}
+                        >
+                            Standard
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setTemplateId('premium')}
+                            className={clsx(
+                                "flex-1 py-3 rounded-2xl border text-sm font-medium transition-all",
+                                templateId === 'premium'
+                                    ? 'bg-primary/20 border-primary text-primary'
+                                    : 'border-white/10 text-text-muted hover:bg-white/5'
+                            )}
+                        >
+                            Premium
+                        </button>
                     </div>
-                </div>
+                </motion.section>
+
+                {/* Total Amount */}
+                <motion.section
+                    variants={itemVariants}
+                    className="glass-panel rounded-3xl p-6 space-y-4"
+                >
+                    <div className="flex justify-between text-text-muted">
+                        <span>Subtotal</span>
+                        <span>${calculateSubtotal().toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-text-muted">
+                        <span>Tax ({(taxRate * 100).toFixed(1)}%)</span>
+                        <span>${calculateTax().toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-2xl font-bold text-white pt-4 border-t border-white/10">
+                        <span>Total amount</span>
+                        <span>${calculateTotal().toLocaleString()}</span>
+                    </div>
+                </motion.section>
+
+                {/* Action Buttons */}
+                <motion.div variants={itemVariants} className="space-y-3 pt-4">
+                    {id && (
+                        <button
+                            type="button"
+                            onClick={() => handlePrint && handlePrint()}
+                            className="btn-outline w-full flex items-center justify-center gap-2"
+                        >
+                            <Download className="w-5 h-5" />
+                            Download PDF
+                        </button>
+                    )}
+                    <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="btn-dark w-full flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                        {isSubmitting ? (
+                            <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                            <Save className="w-5 h-5" />
+                        )}
+                        {id ? 'Update invoice' : 'Send invoice'}
+                    </button>
+                </motion.div>
             </form>
 
             <UpgradeModal
                 isOpen={showUpgradeModal}
                 onClose={() => setShowUpgradeModal(false)}
             />
-        </div>
+        </motion.div>
     );
 };
 
