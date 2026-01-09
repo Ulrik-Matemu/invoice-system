@@ -1,22 +1,23 @@
 import { forwardRef } from 'react';
 import type { Invoice } from '../lib/firestore';
-import { StandardTemplate } from './templates/StandardTemplate';
-import { PremiumTemplate } from './templates/PremiumTemplate';
+import { getTemplateById } from './templates/TemplateRegistry';
+import type { TemplateConfig } from './templates/types';
 
 interface InvoicePDFProps {
     invoice: Invoice;
-    templateId?: 'standard' | 'premium';
+    templateId?: string;
+    customTemplates?: TemplateConfig[];
 }
 
-export const InvoicePDF = forwardRef<HTMLDivElement, InvoicePDFProps>(({ invoice, templateId }, ref) => {
-    // Use passed templateId or fallback to invoice's stored templateId, or default to standard
-    const selectedTemplate = templateId || invoice.templateId || 'standard';
+export const InvoicePDF = forwardRef<HTMLDivElement, InvoicePDFProps>(({ invoice, templateId, customTemplates = [] }, ref) => {
+    const selectedId = templateId || invoice.templateId || 'standard';
+    const templateDef = getTemplateById(selectedId, customTemplates);
+    const TemplateComponent = templateDef.component;
 
-    if (selectedTemplate === 'premium') {
-        return <PremiumTemplate ref={ref} invoice={invoice} />;
-    }
+    // Use invoice.templateConfig if available (for saved invoices), otherwise fallback to template default
+    const config = invoice.templateConfig || templateDef.config;
 
-    return <StandardTemplate ref={ref} invoice={invoice} />;
+    return <TemplateComponent ref={ref} invoice={invoice} config={config} />;
 });
 
 InvoicePDF.displayName = 'InvoicePDF';

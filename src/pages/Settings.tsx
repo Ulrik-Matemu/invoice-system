@@ -9,6 +9,10 @@ import { updateUserSettings, deleteUserAccount, type ServiceTypeConfig } from '.
 import Swal from 'sweetalert2';
 
 import { useCache } from '../context/CacheContext';
+import { TemplateEditor } from '../components/TemplateEditor';
+import type { TemplateConfig } from '../components/templates/types';
+import Edit from 'lucide-react/dist/esm/icons/edit';
+import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
 
 const Settings = () => {
     const { user, logout } = useAuth();
@@ -25,7 +29,7 @@ const Settings = () => {
     const [companyTaxId, setCompanyTaxId] = useState(''); // TIN
     const [companyTaxNumber, setCompanyTaxNumber] = useState(''); // VRN
     const [companyLicenseNumber, setCompanyLicenseNumber] = useState('');
-    const [defaultTemplate, setDefaultTemplate] = useState<'standard' | 'premium'>('standard');
+    const [defaultTemplate, setDefaultTemplate] = useState<string>('standard');
     const [serviceTypes, setServiceTypes] = useState<ServiceTypeConfig[]>([]);
     const [enableAgentDetails, setEnableAgentDetails] = useState(true);
     const [newServiceType, setNewServiceType] = useState('');
@@ -33,6 +37,8 @@ const Settings = () => {
     const [newServiceLabel, setNewServiceLabel] = useState('Description');
     const [initialSettings, setInitialSettings] = useState<string>('');
     const [isDirty, setIsDirty] = useState(false);
+    const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
+    const [editingTemplate, setEditingTemplate] = useState<TemplateConfig | undefined>(undefined);
 
     useEffect(() => {
         if (cachedSettings) {
@@ -290,6 +296,51 @@ const Settings = () => {
         setServiceTypes(serviceTypes.filter(t => t.name !== name));
     };
 
+    const handleSaveTemplate = async (config: TemplateConfig) => {
+        if (!user) return;
+        const newConfig = { ...config, id: config.id || `custom-${Date.now()}` };
+        const currentCustomTemplates = cachedSettings?.customTemplates || [];
+        let newCustomTemplates;
+
+        if (config.id) {
+            newCustomTemplates = currentCustomTemplates.map((t: any) => t.id === config.id ? newConfig : t);
+        } else {
+            newCustomTemplates = [...currentCustomTemplates, newConfig];
+        }
+
+        try {
+            await updateUserSettings(user.uid, { customTemplates: newCustomTemplates });
+            setIsTemplateEditorOpen(false);
+            Swal.fire({
+                title: 'Template saved',
+                icon: 'success',
+                timer: 1500,
+                showConfirmButton: false
+            });
+        } catch (error) {
+            console.error("Error saving template:", error);
+            Swal.fire('Error', 'Failed to save template', 'error');
+        }
+    };
+
+    const handleDeleteTemplate = async (id: string) => {
+        if (!user) return;
+        const result = await Swal.fire({
+            title: 'Delete Template?',
+            text: "This cannot be undone.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#ef4444',
+            confirmButtonText: 'Yes, delete it'
+        });
+
+        if (result.isConfirmed) {
+            const currentCustomTemplates = cachedSettings?.customTemplates || [];
+            const newCustomTemplates = currentCustomTemplates.filter((t: any) => t.id !== id);
+            await updateUserSettings(user.uid, { customTemplates: newCustomTemplates });
+        }
+    };
+
     if (cacheLoading || isDeleting) {
         return (
             <div className="flex items-center justify-center min-h-[50vh]">
@@ -413,40 +464,63 @@ const Settings = () => {
                     </div>
                 </div>
 
-                <div>
-                    <h2 className="text-xl font-bold text-white mb-4">Invoice Template</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <button
-                            onClick={() => setDefaultTemplate('standard')}
-                            className={`p-4 rounded-xl border text-left transition-all ${defaultTemplate === 'standard'
-                                ? 'bg-primary/20 border-primary'
-                                : 'bg-surface-light/30 border-white/10 hover:bg-surface-light/50'
-                                }`}
-                        >
-                            <div className={`w-4 h-4 rounded-full border mb-3 ${defaultTemplate === 'standard'
-                                ? 'border-primary bg-primary'
-                                : 'border-white/30'
-                                }`} />
-                            <h3 className="font-bold text-white mb-1">Standard</h3>
-                            <p className="text-sm text-text-muted">Clean and professional design suitable for most businesses.</p>
-                        </button>
 
+
+                <div>
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-bold text-white">Custom Templates</h2>
                         <button
-                            onClick={() => setDefaultTemplate('premium')}
-                            className={`p-4 rounded-xl border text-left transition-all ${defaultTemplate === 'premium'
-                                ? 'bg-primary/20 border-primary'
-                                : 'bg-surface-light/30 border-white/10 hover:bg-surface-light/50'
-                                }`}
+                            onClick={() => {
+                                setEditingTemplate(undefined);
+                                setIsTemplateEditorOpen(true);
+                            }}
+                            className="text-sm text-primary hover:text-primary-light transition-colors flex items-center gap-1"
                         >
-                            <div className={`w-4 h-4 rounded-full border mb-3 ${defaultTemplate === 'premium'
-                                ? 'border-primary bg-primary'
-                                : 'border-white/30'
-                                }`} />
-                            <h3 className="font-bold text-white mb-1">Premium</h3>
-                            <p className="text-sm text-text-muted">Elegant, high-end design with modern typography and layout.</p>
+                            <Plus className="w-4 h-4" />
+                            Create New
                         </button>
                     </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {cachedSettings?.customTemplates?.map((template: TemplateConfig) => (
+                            <div key={template.id} className="p-4 rounded-xl bg-surface-light/30 border border-white/10 flex items-center justify-between group">
+                                <div>
+                                    <h3 className="font-bold text-white mb-1">{template.name}</h3>
+                                    <p className="text-xs text-text-muted">Custom Template</p>
+                                </div>
+                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button
+                                        onClick={() => {
+                                            setEditingTemplate(template);
+                                            setIsTemplateEditorOpen(true);
+                                        }}
+                                        className="p-2 hover:bg-white/10 rounded-lg text-text-muted hover:text-white transition-colors"
+                                    >
+                                        <Edit className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => template.id && handleDeleteTemplate(template.id)}
+                                        className="p-2 hover:bg-red-500/20 rounded-lg text-text-muted hover:text-red-400 transition-colors"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        ))}
+                        {(!cachedSettings?.customTemplates || cachedSettings.customTemplates.length === 0) && (
+                            <div className="col-span-2 text-center py-8 border border-dashed border-white/10 rounded-xl">
+                                <p className="text-text-muted text-sm">No custom templates yet. Create one to get started!</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
+
+                <TemplateEditor
+                    isOpen={isTemplateEditorOpen}
+                    onClose={() => setIsTemplateEditorOpen(false)}
+                    onSave={handleSaveTemplate}
+                    initialConfig={editingTemplate}
+                />
 
                 <div>
                     <h2 className="text-xl font-bold text-white mb-4">Company Details</h2>

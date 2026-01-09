@@ -49,7 +49,8 @@ export interface Invoice {
     companyTaxId?: string; // TIN
     companyTaxNumber?: string; // VRN
     companyLicenseNumber?: string;
-    templateId?: 'standard' | 'premium';
+    templateId?: string;
+    templateConfig?: any;
 }
 
 export const updateUserProfile = async (uid: string, data: Partial<UserProfile>) => {
@@ -326,10 +327,12 @@ export interface UserSettings {
     companyTaxId?: string; // TIN
     companyTaxNumber?: string; // VRN
     companyLicenseNumber?: string;
-    defaultTemplate?: 'standard' | 'premium';
+    defaultTemplate?: string;
+    templateConfig?: any;
     hasSeenTour?: boolean;
     serviceTypes?: ServiceTypeConfig[];
     enableAgentDetails?: boolean;
+    customTemplates?: any[];
 }
 
 export const getUserSettings = async (userId: string) => {

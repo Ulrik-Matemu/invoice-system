@@ -13,6 +13,10 @@ import { InvoicePDF } from '../components/InvoicePDF';
 import { UpgradeModal } from '../components/UpgradeModal';
 import { clsx } from 'clsx';
 import { useCache } from '../context/CacheContext';
+import { TemplateSelector } from '../components/TemplateSelector';
+import { getTemplateById } from '../components/templates/TemplateRegistry';
+import type { TemplateConfig } from '../components/templates/types';
+import LayoutTemplate from 'lucide-react/dist/esm/icons/layout-template';
 
 // Animation variants
 const containerVariants = {
@@ -55,7 +59,9 @@ const InvoiceForm = () => {
         taxNumber: '',
         licenseNumber: ''
     });
-    const [templateId, setTemplateId] = useState<'standard' | 'premium'>('standard');
+    const [templateId, setTemplateId] = useState<string>('standard');
+    const [templateConfig, setTemplateConfig] = useState<TemplateConfig | undefined>(undefined);
+    const [isTemplateSelectorOpen, setIsTemplateSelectorOpen] = useState(false);
     const [invoiceNumber, setInvoiceNumber] = useState(`INV-${Date.now().toString().slice(-6)}`);
     const [createdAt, setCreatedAt] = useState<any>(null);
     const [serviceTypes, setServiceTypes] = useState<ServiceTypeConfig[]>([]);
@@ -97,43 +103,44 @@ const InvoiceForm = () => {
                 taxNumber: cachedSettings.companyTaxNumber || '',
                 licenseNumber: cachedSettings.companyLicenseNumber || ''
             });
-            setTemplateId(cachedSettings.defaultTemplate || 'standard');
-
-            if (cachedSettings.serviceTypes && cachedSettings.serviceTypes.length > 0) {
-                const loadedServices = cachedSettings.serviceTypes;
-                const normalizedServices: ServiceTypeConfig[] = loadedServices.map((s: any) => {
-                    if (typeof s === 'string') {
-                        return {
-                            name: s,
-                            requiresDates: ['Hotel', 'Safari', 'Flight', 'Custom Package'].includes(s),
-                            descriptionLabel: s === 'Hotel' ? 'Hotel Name' :
-                                s === 'Safari' ? 'Safari Details' :
-                                    s === 'Flight' ? 'Flight Details' :
-                                        'Description'
-                        };
-                    }
-                    return s;
-                });
-                setServiceTypes(normalizedServices);
-
-                if (!id && items.length === 1 && (items[0].serviceType === 'Hotel' || items[0].serviceType === 'Service') && !items[0].description) {
-                    const firstService = normalizedServices[0];
-                    if (firstService) {
-                        setItems([{
-                            ...items[0],
-                            serviceType: firstService.name,
-                        }]);
-                    }
-                }
-            } else {
-                setServiceTypes([
-                    { name: 'Service', requiresDates: false, descriptionLabel: 'Description' },
-                    { name: 'Product', requiresDates: false, descriptionLabel: 'Description' },
-                    { name: 'Hours', requiresDates: false, descriptionLabel: 'Description' }
-                ]);
-            }
-            setEnableAgentDetails(cachedSettings.enableAgentDetails !== undefined ? cachedSettings.enableAgentDetails : true);
+            setTemplateId(cachedSettings?.defaultTemplate || 'standard');
+            setTemplateConfig(cachedSettings?.templateConfig);
         }
+        if (cachedSettings?.serviceTypes && cachedSettings.serviceTypes.length > 0) {
+            const loadedServices = cachedSettings.serviceTypes;
+            const normalizedServices: ServiceTypeConfig[] = loadedServices.map((s: any) => {
+                if (typeof s === 'string') {
+                    return {
+                        name: s,
+                        requiresDates: ['Hotel', 'Safari', 'Flight', 'Custom Package'].includes(s),
+                        descriptionLabel: s === 'Hotel' ? 'Hotel Name' :
+                            s === 'Safari' ? 'Safari Details' :
+                                s === 'Flight' ? 'Flight Details' :
+                                    'Description'
+                    };
+                }
+                return s;
+            });
+            setServiceTypes(normalizedServices);
+
+            if (!id && items.length === 1 && (items[0].serviceType === 'Hotel' || items[0].serviceType === 'Service') && !items[0].description) {
+                const firstService = normalizedServices[0];
+                if (firstService) {
+                    setItems([{
+                        ...items[0],
+                        serviceType: firstService.name,
+                    }]);
+                }
+            }
+        } else {
+            setServiceTypes([
+                { name: 'Service', requiresDates: false, descriptionLabel: 'Description' },
+                { name: 'Product', requiresDates: false, descriptionLabel: 'Description' },
+                { name: 'Hours', requiresDates: false, descriptionLabel: 'Description' }
+            ]);
+        }
+        setEnableAgentDetails(cachedSettings?.enableAgentDetails !== undefined ? cachedSettings.enableAgentDetails : true);
+
 
         setClients(cachedClients);
 
@@ -151,6 +158,9 @@ const InvoiceForm = () => {
                 }
                 if (invoiceData.templateId) {
                     setTemplateId(invoiceData.templateId);
+                }
+                if (invoiceData.templateConfig) {
+                    setTemplateConfig(invoiceData.templateConfig);
                 }
                 setItems(invoiceData.items.map((item, index) => ({
                     ...item,
@@ -231,7 +241,6 @@ const InvoiceForm = () => {
                 totalAmount: calculateTotal(),
                 status: status,
                 taxRate: taxRate,
-                templateId: templateId,
                 companyName: companyDetails.name,
                 companyAddress: companyDetails.address,
                 companyEmail: companyDetails.email,
@@ -239,9 +248,10 @@ const InvoiceForm = () => {
                 companyWebsite: companyDetails.website,
                 companyTaxId: companyDetails.taxId,
                 companyTaxNumber: companyDetails.taxNumber,
-                companyLicenseNumber: companyDetails.licenseNumber
+                companyLicenseNumber: companyDetails.licenseNumber,
+                templateId,
+                templateConfig
             };
-
             if (id) {
                 await updateInvoice(id, invoiceData);
             } else {
@@ -308,7 +318,7 @@ const InvoiceForm = () => {
         >
             {/* Hidden PDF Component */}
             <div className="hidden print:block">
-                <InvoicePDF ref={componentRef} invoice={currentInvoice} />
+                <InvoicePDF ref={componentRef} invoice={currentInvoice} customTemplates={cachedSettings?.customTemplates} />
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-6 print:hidden">
@@ -619,33 +629,39 @@ const InvoiceForm = () => {
                 {/* Template Selection */}
                 <motion.section variants={itemVariants} className="space-y-2">
                     <label className="text-sm font-medium text-text-muted">Template</label>
-                    <div className="flex gap-3 mt-2">
-                        <button
-                            type="button"
-                            onClick={() => setTemplateId('standard')}
-                            className={clsx(
-                                "flex-1 py-3 rounded-2xl border text-sm font-medium transition-all",
-                                templateId === 'standard'
-                                    ? 'bg-primary/20 border-primary text-primary'
-                                    : 'border-white/10 text-text-muted hover:bg-white/5'
-                            )}
-                        >
-                            Standard
-                        </button>
-                        <button
-                            type="button"
-                            onClick={() => setTemplateId('premium')}
-                            className={clsx(
-                                "flex-1 py-3 rounded-2xl border text-sm font-medium transition-all",
-                                templateId === 'premium'
-                                    ? 'bg-primary/20 border-primary text-primary'
-                                    : 'border-white/10 text-text-muted hover:bg-white/5'
-                            )}
-                        >
-                            Premium
-                        </button>
-                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setIsTemplateSelectorOpen(true)}
+                        className="w-full py-3 px-4 rounded-2xl border border-white/10 bg-white/5 hover:bg-white/10 text-left flex items-center justify-between transition-all group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-primary/10 text-primary group-hover:bg-primary/20 transition-colors">
+                                <LayoutTemplate className="w-5 h-5" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-white">{getTemplateById(templateId, cachedSettings?.customTemplates).name}</p>
+                                <p className="text-xs text-text-muted">{getTemplateById(templateId, cachedSettings?.customTemplates).description}</p>
+                            </div>
+                        </div>
+                        <div className="text-xs font-medium text-primary px-3 py-1 rounded-full bg-primary/10">
+                            Change
+                        </div>
+                    </button>
                 </motion.section>
+
+                <TemplateSelector
+                    isOpen={isTemplateSelectorOpen}
+                    onClose={() => setIsTemplateSelectorOpen(false)}
+                    onSelect={(id, config) => {
+                        setTemplateId(id);
+                        setTemplateConfig(config);
+                        setIsTemplateSelectorOpen(false);
+                    }}
+                    currentTemplateId={templateId}
+                    currentConfig={templateConfig}
+                    customTemplates={cachedSettings?.customTemplates}
+                    disableCustomization={true}
+                />
 
                 {/* Total Amount */}
                 <motion.section
