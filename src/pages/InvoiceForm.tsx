@@ -251,7 +251,7 @@ const InvoiceForm = () => {
                 companyTaxNumber: companyDetails.taxNumber,
                 companyLicenseNumber: companyDetails.licenseNumber,
                 templateId,
-                templateConfig
+                templateConfig: templateConfig || null
             };
             if (id) {
                 await updateInvoice(id, invoiceData);
