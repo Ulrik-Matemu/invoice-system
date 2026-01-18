@@ -22,23 +22,47 @@ const router = createBrowserRouter(
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
       <Route path="/ad-reward" element={
-        <ProtectedRoute>
-          <AdReward />
-        </ProtectedRoute>
+        <AdReward />
       } />
-
       <Route path="/" element={
-        <ProtectedRoute>
-          <Layout />
-        </ProtectedRoute>
+        <Layout />
       }>
-        <Route index element={<Dashboard />} />
-        <Route path="invoices" element={<Invoices />} />
-        <Route path="invoices/new" element={<InvoiceForm />} />
-        <Route path="invoices/:id" element={<InvoiceForm />} />
-        <Route path="clients" element={<Clients />} />
-        <Route path="expenses" element={<Expenses />} />
-        <Route path="settings" element={<Settings />} />
+        <Route index element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        }
+        />
+        <Route path="invoices" element={
+          <ProtectedRoute>
+            <Invoices />
+          </ProtectedRoute>
+        } />
+        <Route path="invoices/new" element={
+          <ProtectedRoute>
+            <InvoiceForm />
+          </ProtectedRoute>
+        } />
+        <Route path="invoices/:id" element={
+          <ProtectedRoute>
+            <InvoiceForm />
+          </ProtectedRoute>
+        } />
+        <Route path="clients" element={
+          <ProtectedRoute>
+            <Clients />
+          </ProtectedRoute>
+        } />
+        <Route path="expenses" element={
+          <ProtectedRoute>
+            <Expenses />
+          </ProtectedRoute>
+        } />
+        <Route path="settings" element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        } />
       </Route>
     </>
   )
