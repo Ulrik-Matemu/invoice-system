@@ -56,7 +56,8 @@ const AdReward = () => {
             const currentLimit = userProfile.allowedInvoices || 5;
             // Optimistic update
             await updateUserProfile(user.uid, {
-                allowedInvoices: currentLimit + 1
+                allowedInvoices: currentLimit + 1,
+                invoiceCount: 4,
             });
             await refreshProfile();
             navigate(-1); // Go back
@@ -88,9 +89,9 @@ const AdReward = () => {
                     <div className="w-full flex justify-center">
                         {/* Placeholder for AdSense */}
                         <ins className="adsbygoogle"
-                            style={{ display: 'block', minWidth: '300px', minHeight: '250px' }}
+                            style={{ display: 'block' }}
                             data-ad-client="ca-pub-2822990308377679"
-                            data-ad-slot="2822990308377679"
+                            data-ad-slot="8195194873"
                             data-ad-format="auto"
                             data-full-width-responsive="true"></ins>
                     </div>
