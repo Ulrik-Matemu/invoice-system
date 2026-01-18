@@ -139,25 +139,25 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
                                 <span className="text-text-muted">Free Plan</span>
                                 <span className={clsx(
                                     "font-bold",
-                                    userProfile.invoiceCount >= 5 ? "text-red-400" : "text-white"
+                                    userProfile.invoiceCount >= (userProfile.allowedInvoices || 5) ? "text-red-400" : "text-white"
                                 )}>
-                                    {userProfile.invoiceCount}/5
+                                    {userProfile.invoiceCount}/{userProfile.allowedInvoices || 5}
                                 </span>
                             </div>
                             <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden mb-2">
                                 <motion.div
                                     initial={{ width: 0 }}
-                                    animate={{ width: `${Math.min((userProfile.invoiceCount / 5) * 100, 100)}%` }}
+                                    animate={{ width: `${Math.min((userProfile.invoiceCount / (userProfile.allowedInvoices || 5)) * 100, 100)}%` }}
                                     transition={{ duration: 1, ease: 'easeOut' }}
                                     className={clsx(
                                         "h-full rounded-full",
-                                        userProfile.invoiceCount >= 5 ? "bg-red-500" : "bg-gradient-to-r from-primary to-accent"
+                                        userProfile.invoiceCount >= (userProfile.allowedInvoices || 5) ? "bg-red-500" : "bg-gradient-to-r from-primary to-accent"
                                     )}
                                 />
                             </div>
                             <p className="text-xs text-text-muted text-center">
-                                {5 - userProfile.invoiceCount > 0
-                                    ? `${5 - userProfile.invoiceCount} invoices remaining`
+                                {(userProfile.allowedInvoices || 5) - userProfile.invoiceCount > 0
+                                    ? `${(userProfile.allowedInvoices || 5) - userProfile.invoiceCount} invoices remaining`
                                     : 'Upgrade for unlimited invoices'}
                             </p>
                         </div>

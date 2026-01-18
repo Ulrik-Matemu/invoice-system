@@ -14,12 +14,18 @@ const Settings = React.lazy(() => import('./pages/Settings'));
 const Login = React.lazy(() => import('./pages/Login'));
 const SignUp = React.lazy(() => import('./pages/SignUp'));
 const Expenses = React.lazy(() => import('./pages/Expenses'));
+const AdReward = React.lazy(() => import('./pages/AdReward'));
 
 const router = createBrowserRouter(
   createRoutesFromElements(
     <>
       <Route path="/login" element={<Login />} />
       <Route path="/signup" element={<SignUp />} />
+      <Route path="/ad-reward" element={
+        <ProtectedRoute>
+          <AdReward />
+        </ProtectedRoute>
+      } />
 
       <Route path="/" element={
         <ProtectedRoute>

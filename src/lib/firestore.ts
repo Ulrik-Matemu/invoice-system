@@ -68,6 +68,7 @@ export interface UserProfile {
     email: string;
     isPro: boolean;
     invoiceCount: number;
+    allowedInvoices: number;
 }
 
 export interface Expense {
@@ -104,7 +105,8 @@ export const createUserProfile = async (user: { uid: string; email: string | nul
                 uid: user.uid,
                 email: user.email || '',
                 isPro: false,
-                invoiceCount: 0
+                invoiceCount: 0,
+                allowedInvoices: 5
             };
             await setDoc(docRef, newProfile);
             return newProfile;
@@ -122,7 +124,8 @@ export const addInvoice = async (invoiceData: Omit<Invoice, 'id' | 'createdAt'>)
         const userProfile = await getUserProfile(invoiceData.userId);
 
         if (userProfile) {
-            if (!userProfile.isPro && userProfile.invoiceCount >= 5) {
+            const limit = userProfile.allowedInvoices || 5;
+            if (!userProfile.isPro && userProfile.invoiceCount >= limit) {
                 throw new Error("Free limit reached. Please upgrade to Pro.");
             }
         }

@@ -219,7 +219,8 @@ const InvoiceForm = () => {
         e.preventDefault();
         if (!user) return;
 
-        if (!id && userProfile && !userProfile.isPro && userProfile.invoiceCount >= 5) {
+        const limit = userProfile?.allowedInvoices || 5;
+        if (!id && userProfile && !userProfile.isPro && userProfile.invoiceCount >= limit) {
             setShowUpgradeModal(true);
             return;
         }
@@ -704,7 +705,7 @@ const InvoiceForm = () => {
                         ) : (
                             <Save className="w-5 h-5" />
                         )}
-                        {id ? 'Update invoice' : 'Send invoice'}
+                        {id ? 'Update invoice' : 'Save invoice'}
                     </button>
                 </motion.div>
             </form>

@@ -1,9 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import X from 'lucide-react/dist/esm/icons/x';
 import Check from 'lucide-react/dist/esm/icons/check';
 import Zap from 'lucide-react/dist/esm/icons/zap';
 import Crown from 'lucide-react/dist/esm/icons/crown';
 import Loader2 from 'lucide-react/dist/esm/icons/loader-2';
+import Play from 'lucide-react/dist/esm/icons/play';
 import { useGoogleBilling } from '../hooks/useGoogleBilling';
 
 interface UpgradeModalProps {
@@ -16,6 +18,7 @@ const PRO_SUBSCRIPTION_SKU = 'premium_monthly_plan';
 
 export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) => {
     const { handlePurchase, isVerifying } = useGoogleBilling();
+    const navigate = useNavigate();
 
     if (!isOpen) return null;
 
@@ -97,6 +100,20 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({ isOpen, onClose }) =
                             <span>Subscribe for $7/month</span>
                         </>
                     )}
+                </button>
+
+                <div className="relative flex py-2 items-center">
+                    <div className="flex-grow border-t border-white/10"></div>
+                    <span className="flex-shrink-0 mx-4 text-text-muted text-xs">OR</span>
+                    <div className="flex-grow border-t border-white/10"></div>
+                </div>
+
+                <button
+                    onClick={() => navigate('/ad-reward')}
+                    className="w-full bg-[#112240] hover:bg-[#1d3557] text-white font-medium py-3 px-6 rounded-xl transition-all border border-primary/20 flex items-center justify-center gap-2 mb-3"
+                >
+                    <Play className="w-4 h-4 text-primary" />
+                    <span>Watch Ad for 1 Free Invoice</span>
                 </button>
 
                 <p className="text-xs text-center text-text-muted">
