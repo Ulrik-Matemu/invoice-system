@@ -13,6 +13,7 @@ import { TemplateEditor } from '../components/TemplateEditor';
 import type { TemplateConfig } from '../components/templates/types';
 import Edit from 'lucide-react/dist/esm/icons/edit';
 import Trash2 from 'lucide-react/dist/esm/icons/trash-2';
+import ExternalLink from 'lucide-react/dist/esm/icons/external-link';
 
 const Settings = () => {
     const { user, logout } = useAuth();
@@ -608,6 +609,25 @@ const Settings = () => {
                     </div>
                 </div>
 
+
+                <div>
+                    <h2 className="text-xl font-bold text-white mb-4">Subscription</h2>
+                    <div className="p-4 rounded-xl bg-surface-light/30 border border-white/10">
+                        <h3 className="font-bold text-white mb-2">Manage Subscription</h3>
+                        <p className="text-sm text-text-muted mb-4">
+                            To cancel or manage your subscription, please visit the Google Play Store.
+                        </p>
+                        <a
+                            href="https://play.google.com/store/account/subscriptions"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 text-primary hover:text-primary-light transition-colors font-medium"
+                        >
+                            Cancel Subscription
+                            <ExternalLink className="w-4 h-4" />
+                        </a>
+                    </div>
+                </div>
 
                 <div>
                     <h2 className="text-xl font-bold text-red-400 mb-4">Danger Zone</h2>
