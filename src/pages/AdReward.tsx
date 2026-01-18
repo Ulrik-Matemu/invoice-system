@@ -57,7 +57,7 @@ const AdReward = () => {
             // Optimistic update
             await updateUserProfile(user.uid, {
                 allowedInvoices: currentLimit + 1,
-                invoiceCount: 4,
+                invoiceCount: 4
             });
             await refreshProfile();
             navigate(-1); // Go back
