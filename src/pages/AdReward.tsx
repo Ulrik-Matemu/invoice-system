@@ -85,10 +85,10 @@ const AdReward = () => {
 
                 {/* Ad Container */}
                 <div className="bg-black/40 rounded-xl border border-white/5 min-h-[300px] flex flex-col items-center justify-center mb-8 relative overflow-hidden p-4">
-                    <div className="w-full flex justify-center">
+                    <div className="w-full text-center">
                         {/* Placeholder for AdSense */}
                         <ins className="adsbygoogle"
-                            style={{ display: 'block' }}
+                            style={{ display: 'block', width: '100%', minWidth: '280px' }}
                             data-ad-client="ca-pub-2822990308377679"
                             data-ad-slot="8195194873"
                             data-ad-format="auto"

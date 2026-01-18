@@ -30,8 +30,8 @@ service cloud.firestore {
           // Allow if user is Pro
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isPro == true
           ||
-          // OR if invoice count is less than 5 (Note: this relies on the counter being accurate)
-          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.invoiceCount < 5
+          // OR if invoice count is less than allowed limit (default 5)
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.invoiceCount < get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('allowedInvoices', 5)
           ||
           // Handle case where user doc might not exist yet or count is missing (optional, but good for safety)
           !exists(/databases/$(database)/documents/users/$(request.auth.uid))
